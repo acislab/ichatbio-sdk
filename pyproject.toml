@@ -1,0 +1,29 @@
+[project]
+name = "ichatbio-sdk"
+readme = "README.md"
+authors = [
+    { name = "Michael Elliott", email = "mielliott@ufl.edu" },
+    { name = "Manny Luciano", email = "mlluciano@ufl.edu" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "git+https://github.com/google/a2a-python.git#egg=a2a-sdk",
+    "openai~=1.79.0",
+    "pydantic~=2.11.4",
+    "instructor~=1.8.2",
+    "dotenv~=0.9.9",
+    "uvicorn~=0.34.2",
+    "typing_extensions~=4.13.2",
+    "python-dotenv~=1.1.0",
+    "pytest~=8.3.5",
+    "pytest-asyncio~=1.0.0a1"
+]
+
+[project.urls]
+repository = "https://github.com/acislab/ichatbio-sdk"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+asyncio_mode = "auto"
