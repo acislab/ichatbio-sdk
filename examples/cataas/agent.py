@@ -7,45 +7,44 @@ import dotenv
 import instructor
 import pydantic
 import requests
-from a2a.types import AgentAuthentication, AgentCapabilities, AgentCard, AgentSkill
-from importlib_metadata import metadata
 from instructor.exceptions import InstructorRetryException
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic import Field
 
 from ichatbio.agent import IChatBioAgent
+from ichatbio.types import AgentCard, AgentEntrypoint
 from ichatbio.types import Message, TextMessage, ArtifactMessage
 
 dotenv.load_dotenv()
 
 
 class CataasAgent(IChatBioAgent):
-    agent_card: AgentCard
-
     def __init__(self):
-        skill = AgentSkill(
-            id="get_random_cat_picture",
-            name="Cat picture",
-            description="Returns a random cat picture",
-            tags=["cat", "picture", "image"],
-            examples=["Show me a cat"],
-        )
-
         self.agent_card = AgentCard(
-            name="Cat Agent",
-            description="Calls the cataas.com API",
-            url="http://localhost:9999/",
-            version="1.0.0",
-            defaultInputModes=["text"],
-            defaultOutputModes=["text"],
-            capabilities=AgentCapabilities(),
-            skills=[skill],
-            authentication=AgentAuthentication(schemes=["public"]),
+            name="Cat As A Service",
+            description="Retrieves random cat images from cataas.com.",
+            icon=None,
+            entrypoints=[
+                AgentEntrypoint(
+                    id="get_cat_image",
+                    description="Returns a random cat picture",
+                    parameters=None
+                )
+            ]
         )
 
     @override
-    async def run(self, request: str, params: dict, **kwargs) -> AsyncGenerator[None, Message]:
+    def get_agent_card(self) -> AgentCard:
+        return self.agent_card
+
+    @override
+    async def run(self, request: str, entrypoint: str, params: Optional[dict], **kwargs) -> AsyncGenerator[
+        Message, None]:
+        if not entrypoint == "get_cat_image":
+            # Complain
+            pass
+
         openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         instructor_client = instructor.patch(openai_client)
 
@@ -53,7 +52,11 @@ class CataasAgent(IChatBioAgent):
             cat = await instructor_client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 response_model=CatModel,
-                messages=[{"role": "user", "content": request}],
+                messages=[
+                    {"role": "system",
+                     "content": "You translate user requests into Cat-As-A-Service (cataas.com) API parameters."},
+                    {"role": "user", "content": request}
+                ],
                 max_retries=3
             )
 
@@ -71,7 +74,7 @@ class CataasAgent(IChatBioAgent):
             )
 
         except InstructorRetryException as e:
-            pass
+            yield TextMessage(text="Sorry, I couldn't find any cat images.")
 
 
 COLORS = Literal[

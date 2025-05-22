@@ -1,6 +1,47 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+class AgentEntrypoint(BaseModel):
+    """
+    Defines how iChatBio interacts with an agent. Messages from iChatBio are required to comply with
+    this data model. Validation of the model is performed by the agent. Messages that violate this model
+    will be returned to iChatBio.
+    """
+    id: str
+    """The identifier for this entrypoint. Try to make the ID informative. For example, "search_idigbio"."""
+
+    description: str
+    """An explanation of what the agent can do through this entrypoint."""
+
+    parameters: Optional[BaseModel]
+    """Structured information that iChatBio must provide to use this entrypoint."""
+
+
+class AgentCard(BaseModel):
+    """
+    Provides iChatBio with information about an agent and rules for interacting with it.
+    """
+
+    name: str
+    """The name used to identify the agent to iChatBio users."""
+
+    description: str
+    """Describes the agent to both the iChatBio assistant and users."""
+
+    icon: Optional[str]
+    """URL for the image shown to iChatBio users to visually reference this agent."""
+
+    entrypoints: list[AgentEntrypoint]
+    """Defines how iChatBio can interact with this agent."""
+
+    @field_validator("entrypoints")
+    @classmethod
+    def validate_entrypoints(cls, v):
+        if len(v) < 1:
+            raise ValueError("Agent must have at least one entrypoint")
+        return v
 
 
 class ProcessMessage(BaseModel):
@@ -10,7 +51,7 @@ class ProcessMessage(BaseModel):
     """
 
     summary: str
-    """A brief summary ("Searching iDigBio") of what the agent is doing."""
+    """A brief summary of what the agent is doing, e.g. "Searching iDigBio" """
 
     description: Optional[str]
     """Freeform text to more thoroughly describe agent processes. Uses Markdown formatting."""
@@ -44,7 +85,7 @@ class ArtifactMessage(BaseModel):
     """
 
     mimetype: str
-    """The MIME type of the artifact, e.g. text/plain, application/json, image/png."""
+    """The MIME type of the artifact, e.g. ``text/plain``, ``application/json``, ``image/png``."""
 
     description: str
     """A brief (~50 characters) description of the artifact."""
