@@ -7,7 +7,8 @@ from ichatbio.types import TextMessage, ArtifactMessage
 @pytest.mark.asyncio
 async def test_cataas():
     agent = CataasAgent()
-    messages = [m async for m in agent.run("I need a Sphynx", "get_cat_image", None)]
+    response = agent.run("I need a Sphynx", "get_cat_image", None)
+    messages = [m async for m in response]
 
     m1: TextMessage = messages[0]
     assert type(m1) is TextMessage
