@@ -16,12 +16,16 @@ classifiers = [
 ]
 dependencies = [
     "a2a-sdk~=0.2.5",
-    "openai~=1.79.0",
     "pydantic~=2.11.4",
-    "instructor~=1.8.2",
-    "dotenv~=0.9.9",
     "uvicorn~=0.34.2",
     "typing_extensions~=4.13.2",
+]
+
+[project.optional-dependencies]
+example = [
+    "openai~=1.79.0",
+    "instructor~=1.8.2",
+    "dotenv~=0.9.9",
     "python-dotenv~=1.1.0",
     "pytest~=8.3.5",
     "pytest-asyncio~=1.0.0a1",
