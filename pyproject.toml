@@ -1,5 +1,6 @@
 [project]
 name = "ichatbio-sdk"
+version = "0.1.1"
 readme = "README.md"
 authors = [
     { name = "Michael Elliott", email = "mielliott@ufl.edu" },
@@ -7,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "git+https://github.com/google/a2a-python.git#egg=a2a-sdk",
+    "a2a-sdk~=0.2.5",
     "openai~=1.79.0",
     "pydantic~=2.11.4",
     "instructor~=1.8.2",
@@ -16,7 +17,7 @@ dependencies = [
     "typing_extensions~=4.13.2",
     "python-dotenv~=1.1.0",
     "pytest~=8.3.5",
-    "pytest-asyncio~=1.0.0a1"
+    "pytest-asyncio~=1.0.0a1",
 ]
 
 [project.urls]
@@ -26,4 +27,16 @@ repository = "https://github.com/acislab/ichatbio-sdk"
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
-asyncio_mode = "auto"
+asyncio_mode = "strict"
+
+[build-system]
+requires = ["hatchling==1.26.3"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ichatbio"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "tests/",
+]
