@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import AgentCard, AgentEntrypoint
+from ichatbio.types import AgentCard, AgentEntrypoint, ProcessMessage
 from ichatbio.types import Message, TextMessage, ArtifactMessage
 
 dotenv.load_dotenv()
@@ -49,6 +49,8 @@ class CataasAgent(IChatBioAgent):
         instructor_client = instructor.patch(openai_client)
 
         try:
+            yield ProcessMessage(summary="Searching for cats", description="Generating search parameters")
+
             cat = await instructor_client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 response_model=CatModel,
@@ -61,9 +63,20 @@ class CataasAgent(IChatBioAgent):
             )
 
             url = cat.to_url()
+
+            yield ProcessMessage(
+                summary="Retrieving cat",
+                description=f"Search parameters",
+                data={
+                    "search_parameters": cat.model_dump(exclude_none=True)
+                })
+
+            yield ProcessMessage(description=f"Sending GET request to {url}")
+
             response = requests.get(url)
 
-            yield TextMessage(text="Cat retrieved.")
+            yield ProcessMessage(summary="Cat retrieved", description=f"Received {len(response.content)} bytes")
+
             yield ArtifactMessage(
                 mimetype="image/png",
                 description=f"A random cat saying \"{cat.message}\"" if cat.message else "A random cat",
@@ -72,6 +85,10 @@ class CataasAgent(IChatBioAgent):
                     "api_query_url": url
                 }
             )
+
+            yield TextMessage(text="The generated artifact contains the requested image. Note that the artifact's "
+                                   "api_query_url returns random images so it should not be considered a location "
+                                   "or identifier for the image.")
 
         except InstructorRetryException as e:
             yield TextMessage(text="Sorry, I couldn't find any cat images.")

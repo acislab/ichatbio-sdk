@@ -6,8 +6,13 @@ from ichatbio.types import Message, AgentCard
 
 
 class IChatBioAgent(ABC):
+    """
+    Facilitates agent interactions with iChatBio.
+    """
+
     @abstractmethod
     def get_agent_card(self) -> AgentCard:
+        """Returns an iChatBio-specific agent card."""
         pass
 
     @abstractmethod
@@ -15,8 +20,8 @@ class IChatBioAgent(ABC):
         None, Message]:
         """
         :param request: A natural language description of what the agent should do.
-        :param entrypoint:
-        :param params: Structured data to clarify the request.
+        :param entrypoint: The name of the entrypoint selected to handle this request.
+        :param params: Request-related information structured according to the entrypoint's parameter data model.
         :return: A stream of messages.
         """
         pass

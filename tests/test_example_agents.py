@@ -1,7 +1,7 @@
 import pytest
 
 from examples.cataas.agent import CataasAgent
-from ichatbio.types import TextMessage, ArtifactMessage
+from ichatbio.types import ArtifactMessage, ProcessMessage
 
 
 @pytest.mark.asyncio
@@ -10,13 +10,18 @@ async def test_cataas():
     response = agent.run("I need a Sphynx", "get_cat_image", None)
     messages = [m async for m in response]
 
-    m1: TextMessage = messages[0]
-    assert type(m1) is TextMessage
-    assert m1.text == "Cat retrieved."
-    assert m1.data is None
+    process_summaries = [p.summary for p in messages if type(p) is ProcessMessage and p.summary]
 
-    m2: ArtifactMessage = messages[1]
-    assert type(m2) is ArtifactMessage
-    assert m2.mimetype == "image/png"
-    assert m2.content
-    assert m2.metadata == {"api_query_url": "https://cataas.com/cat/sphynx"}
+    assert process_summaries == [
+        "Searching for cats",
+        "Retrieving cat",
+        "Cat retrieved"
+    ]
+
+    artifacts = [p for p in messages if type(p) is ArtifactMessage]
+    assert len(artifacts) == 1
+
+    artifact = artifacts[0]
+    assert artifact.mimetype == "image/png"
+    assert artifact.content
+    assert artifact.metadata == {"api_query_url": "https://cataas.com/cat/sphynx"}

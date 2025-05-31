@@ -50,13 +50,14 @@ class ProcessMessage(BaseModel):
     processes.
     """
 
-    summary: str
-    """A brief summary of what the agent is doing, e.g. "Searching iDigBio" """
+    summary: Optional[str] = None
+    """A brief summary of what the agent is doing, e.g. "Searching iDigBio". Overrides the summary set by any prior
+    ProcessMessages for the current request. Set to None to preserve the current summary (if one exists)."""
 
-    description: Optional[str]
+    description: Optional[str] = None
     """Freeform text to more thoroughly describe agent processes. Uses Markdown formatting."""
 
-    data: Optional[dict]
+    data: Optional[dict] = None
     """Structured information related to the process."""
 
 
