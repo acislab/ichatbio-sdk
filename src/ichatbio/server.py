@@ -1,3 +1,5 @@
+import json
+
 import a2a.types
 import uvicorn
 from a2a.server.apps import A2AStarletteApplication
@@ -21,8 +23,11 @@ def convert_agent_card_to_a2a(card: AgentCard, url: str):
         skills=[a2a.types.AgentSkill(
             id=entrypoint.id,
             name=entrypoint.id,
-            description=entrypoint.description,
-            tags=["ichatbio"]
+            description=json.dumps({
+                "description": entrypoint.description,
+                "parameters": entrypoint.parameters.model_json_schema()
+            }),
+            tags=["ichatbio"],
         ) for entrypoint in card.entrypoints],
     )
 
