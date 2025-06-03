@@ -25,7 +25,7 @@ def agent_server():
 
 
 @pytest.mark.asyncio
-async def test_server(agent_server):
+async def test_bad_entrypoint(agent_server):
     await sleep(5)
     web_client = httpx.AsyncClient(timeout=None)
     a2a_client = a2a.client.A2AClient(web_client, url="http://localhost:9999")
@@ -46,4 +46,30 @@ async def test_server(agent_server):
 
     messages = [message async for message in a2a_client.send_message_streaming(request)]
 
-    pass
+    assert len(messages) == 9
+
+
+@pytest.mark.asyncio
+async def test_server(agent_server):
+    await sleep(2)
+    web_client = httpx.AsyncClient(timeout=None)
+    a2a_client = a2a.client.A2AClient(web_client, url="http://localhost:9999")
+
+    send_message_payload = {
+        "message": {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "I need a sphynx"},
+                {"kind": "data", "data": {"entrypoint": {"id": "get_cat_image"}}},
+            ],
+            "messageId": uuid4().hex,
+        },
+    }
+
+    request = SendStreamingMessageRequest(
+        id=str(uuid4()), params=MessageSendParams(**send_message_payload)
+    )
+
+    messages = [message async for message in a2a_client.send_message_streaming(request)]
+
+    assert len(messages) == 9

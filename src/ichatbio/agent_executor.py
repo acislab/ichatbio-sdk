@@ -14,6 +14,25 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.types import ProcessMessage, TextMessage, ArtifactMessage
 
 
+def fail_parsing_request(updater: TaskUpdater, exception):
+    updater.failed(new_agent_text_message(
+        "Refusing request; parsing error: " + str(exception)
+    ))
+
+
+def fail_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
+    updater.failed(new_agent_text_message(
+        f"Refusing request; unrecognized entrypoint \"{entrypoint_id}\". Available entrypoints:\n" +
+        "[" + ", ".join(e.id for e in agent.get_agent_card().entrypoints) + "]"
+    ))
+
+
+def fail_parameters(updater: TaskUpdater, exception):
+    updater.failed(new_agent_text_message(
+        "Refusing request; parameters do not match schema: " + str(exception)
+    ))
+
+
 class IChatBioAgentExecutor(AgentExecutor):
     """Test AgentProxy Implementation."""
 
@@ -33,25 +52,28 @@ class IChatBioAgentExecutor(AgentExecutor):
         if not context.current_task:
             updater.submit()
 
-        # TODO: for now, take request text from the first TextPart
-        first_text_part = next((p.root for p in context.message.parts if isinstance(p.root, TextPart)))
-        request_text = first_text_part.text
+        # TODO: for now, assume messages begin with a text part and a data part
+        try:
+            request_text: str = context.message.parts[0].root.text
+            request_data: dict = context.message.parts[1].root.data
 
-        # TODO: for now, take request parameters from the first DataPart
-        first_data_part = next((p.root for p in context.message.parts if isinstance(p.root, DataPart)), None)
-        request_params = first_data_part.data if first_data_part else None
+            raw_entrypoint_data = request_data["entrypoint"]
+            entrypoint_id = raw_entrypoint_data["id"]
+            raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else None
 
-        entrypoint_id = "get_cat_image"
+        except (AttributeError, IndexError, KeyError) as e:
+            return fail_parsing_request(updater, e)
+
         entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
 
-        if entrypoint and entrypoint.parameters is not None:
+        if not entrypoint:
+            return fail_entrypoint(entrypoint_id, self.agent)
+
+        if entrypoint.parameters is not None:
             try:
-                entrypoint_params = entrypoint.parameters(request_params)
+                entrypoint_params = entrypoint.parameters(raw_entrypoint_params)
             except ValidationError as e:
-                updater.failed(new_agent_text_message(
-                    "Refusing request; parameters do not match schema:" + e
-                ))
-                return
+                return fail_parameters(updater, e)
         else:
             entrypoint_params = None
 
