@@ -1,9 +1,13 @@
+import base64
+
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
-from a2a.types import UnsupportedOperationError, TextPart, Part, DataPart, FilePart, FileWithBytes, FileWithUri
-from a2a.utils import new_agent_parts_message
+from a2a.types import UnsupportedOperationError, TextPart, Part, DataPart, FilePart, FileWithBytes, FileWithUri, \
+    TaskState
+from a2a.utils import new_agent_parts_message, new_agent_text_message
 from a2a.utils.errors import ServerError
+from pydantic import ValidationError
 from typing_extensions import override
 
 from ichatbio.agent import IChatBioAgent
@@ -29,35 +33,47 @@ class IChatBioAgentExecutor(AgentExecutor):
         if not context.current_task:
             updater.submit()
 
-        updater.start_work()
-
         # TODO: for now, take request text from the first TextPart
-        first_text_part = next((p for p in context.message.parts if type(p) is TextPart))
+        first_text_part = next((p.root for p in context.message.parts if isinstance(p.root, TextPart)))
         request_text = first_text_part.text
 
         # TODO: for now, take request parameters from the first DataPart
-        first_data_part = next((p for p in context.message.parts if type(p) is DataPart))
-        request_params = first_data_part.data
+        first_data_part = next((p.root for p in context.message.parts if isinstance(p.root, DataPart)), None)
+        request_params = first_data_part.data if first_data_part else None
 
-        # TODO: receive conversation, artifacts catalog, etc.
-        conversation_context = object()
+        entrypoint_name = "get_cat_image"
+        entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.name == entrypoint_name), None)
 
-        async for message in self.agent.run(request_text, request_params):
+        if entrypoint and entrypoint.parameters is not None:
+            try:
+                entrypoint_params = entrypoint.parameters(request_params)
+            except ValidationError as e:
+                updater.failed(new_agent_text_message(
+                    "Refusing request; parameters do not match schema:" + e
+                ))
+                return
+        else:
+            entrypoint_params = None
+
+        updater.start_work()
+
+        async for message in self.agent.run(request_text, entrypoint_name, entrypoint_params):
             match message:
-                case ProcessMessage(summary, description, data):
+                case ProcessMessage(summary=summary, description=description, data=data):
                     parts = [DataPart(data={
                         "summary": summary,
                         "description": description,
                         "data": data
                     })]
 
-                case TextMessage(text, data):
+                case TextMessage(text=text, data=data):
                     parts = [TextPart(text=text, metadata=data)]
 
-                case ArtifactMessage(uris, content, mimetype, metadata, description):
+                case ArtifactMessage(uris=uris, content=content, mimetype=mimetype, metadata=metadata,
+                                     description=description):
                     if content:
                         file = FileWithBytes(
-                            data=content,
+                            bytes=base64.b64encode(content),
                             mimeType=mimetype,
                             name=description
                         )
@@ -81,12 +97,15 @@ class IChatBioAgentExecutor(AgentExecutor):
                 case _:
                     raise ValueError("Outgoing messages must be of type ProcessMessage | TextMessage | ArtifactMessage")
 
-            event_queue.enqueue_event(
+            updater.update_status(
+                TaskState.working,
                 new_agent_parts_message(
                     [Part(root=p) for p in parts],
                     context.context_id,
                     context.task_id)
             )
+
+        updater.complete()
 
     @override
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:

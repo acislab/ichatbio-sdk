@@ -2,9 +2,9 @@ import uvicorn
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from agent_executor import IChatBioAgentExecutor
 
 from examples.cataas.agent import CataasAgent
+from ichatbio.agent_executor import IChatBioAgentExecutor
 
 if __name__ == "__main__":
     agent = CataasAgent()

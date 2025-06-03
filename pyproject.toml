@@ -17,8 +17,8 @@ classifiers = [
 dependencies = [
     "a2a-sdk~=0.2.5",
     "pydantic~=2.11.4",
-    "uvicorn~=0.34.2",
     "typing_extensions~=4.13.2",
+    "anyio~=4.9.0"
 ]
 
 [project.optional-dependencies]
@@ -29,6 +29,7 @@ example = [
     "python-dotenv~=1.1.0",
     "pytest~=8.3.5",
     "pytest-asyncio~=1.0.0a1",
+    "uvicorn~=0.34.2",
 ]
 
 [project.urls]

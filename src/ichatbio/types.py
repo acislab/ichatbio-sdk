@@ -95,7 +95,7 @@ class ArtifactMessage(BaseModel):
     """Unique identifiers for the artifact. If URIs are resolvable, content can be omitted."""
 
     content: Optional[bytes] = None
-    """The raw content of the artifact, e.g. JSON records or a Base64 encoded image."""
+    """The raw content of the artifact."""
 
     metadata: Optional[dict] = None
     """Anything related to the artifact, e.g. provenance, schema, landing page URLs, related artifact URIs."""

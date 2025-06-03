@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from typing import Optional
 
+from pydantic import BaseModel
+
 from ichatbio.types import Message, AgentCard
 
 
@@ -16,7 +18,7 @@ class IChatBioAgent(ABC):
         pass
 
     @abstractmethod
-    async def run(self, request: str, entrypoint: str, params: Optional[dict], **kwargs) -> AsyncGenerator[
+    def run(self, request: str, entrypoint: str, params: Optional[BaseModel], **kwargs) -> AsyncGenerator[
         None, Message]:
         """
         :param request: A natural language description of what the agent should do.
