@@ -41,8 +41,8 @@ class IChatBioAgentExecutor(AgentExecutor):
         first_data_part = next((p.root for p in context.message.parts if isinstance(p.root, DataPart)), None)
         request_params = first_data_part.data if first_data_part else None
 
-        entrypoint_name = "get_cat_image"
-        entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.name == entrypoint_name), None)
+        entrypoint_id = "get_cat_image"
+        entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
 
         if entrypoint and entrypoint.parameters is not None:
             try:
@@ -57,7 +57,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
         updater.start_work()
 
-        async for message in self.agent.run(request_text, entrypoint_name, entrypoint_params):
+        async for message in self.agent.run(request_text, entrypoint_id, entrypoint_params):
             match message:
                 case ProcessMessage(summary=summary, description=description, data=data):
                     parts = [DataPart(data={

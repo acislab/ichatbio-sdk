@@ -4,52 +4,21 @@ from uuid import uuid4
 import a2a.client
 import httpx
 import pytest
-import uvicorn
-from a2a.server.apps import A2AStarletteApplication
-from a2a.server.request_handlers import DefaultRequestHandler
-from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import SendMessageRequest, MessageSendParams, AgentCapabilities, SendStreamingMessageRequest
+from a2a.types import MessageSendParams, SendStreamingMessageRequest
 from anyio import sleep
 
 from examples.cataas.agent import CataasAgent
-from ichatbio.agent_executor import IChatBioAgentExecutor
+from ichatbio.server import run_agent_server
 
 
-def run_agent_server():
+def run_test_agent_server():
     agent = CataasAgent()
-
-    request_handler = DefaultRequestHandler(
-        agent_executor=IChatBioAgentExecutor(agent),
-        task_store=InMemoryTaskStore(),
-    )
-
-    icb_agent_card = agent.get_agent_card()
-    a2a_agent_card = a2a.types.AgentCard(
-        name=icb_agent_card.name,
-        description=icb_agent_card.description,
-        skills=[a2a.types.AgentSkill(
-            id=entrypoint.id,
-            name=entrypoint.id,
-            description=entrypoint.description,
-            tags=["ichatbio"]
-        ) for entrypoint in icb_agent_card.entrypoints],
-        url="http://localhost:9999",
-        version="1",
-        capabilities=AgentCapabilities(streaming=True),
-        defaultInputModes=["text/plain"],
-        defaultOutputModes=["text/plain"]
-    )
-
-    server = A2AStarletteApplication(
-        agent_card=a2a_agent_card, http_handler=request_handler
-    )
-
-    uvicorn.run(server.build(), host="0.0.0.0", port=9999)
+    run_agent_server(agent, "0.0.0.0", 9999)
 
 
 @pytest.fixture
 def agent_server():
-    proc = Process(target=run_agent_server, args=(), daemon=True)
+    proc = Process(target=run_test_agent_server, args=(), daemon=True)
     proc.start()
     yield
     proc.kill()
