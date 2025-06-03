@@ -1,75 +1,85 @@
 from multiprocessing import Process
+from time import sleep
+from typing import Optional, AsyncGenerator
 from uuid import uuid4
 
 import a2a.client
 import httpx
 import pytest
-from a2a.types import MessageSendParams, SendStreamingMessageRequest
-from anyio import sleep
+from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard
+from pydantic import BaseModel
 
-from examples.cataas.agent import CataasAgent
+import ichatbio.types
+from ichatbio.agent import IChatBioAgent
 from ichatbio.server import run_agent_server
-
-
-def run_test_agent_server():
-    agent = CataasAgent()
-    run_agent_server(agent, "0.0.0.0", 9999)
+from ichatbio.types import AgentEntrypoint, Message, TextMessage
 
 
 @pytest.fixture
-def agent_server():
-    proc = Process(target=run_test_agent_server, args=(), daemon=True)
+def test_agent():
+    class OptionalParameters(BaseModel):
+        test_parameter: Optional[int] = None
+
+    class StrictParameters(BaseModel):
+        test_parameter: int
+
+    class TestAgent(IChatBioAgent):
+        def get_agent_card(self) -> AgentCard:
+            return ichatbio.types.AgentCard(
+                name="test",
+                description="test",
+                icon=None,
+                entrypoints=[
+                    AgentEntrypoint(id="no_parameters", description="test", parameters=None),
+                    AgentEntrypoint(id="optional_parameters", description="test", parameters=OptionalParameters),
+                    AgentEntrypoint(id="strict_parameters", description="test", parameters=StrictParameters),
+                ],
+                url="http://localhost:9999"
+            )
+
+        async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
+            None, Message]:
+            yield TextMessage(text="first message")
+
+    return TestAgent()
+
+
+def run_test_agent_server(test_agent):
+    run_agent_server(test_agent, "0.0.0.0", 9999)
+
+
+@pytest.fixture
+def agent_server(test_agent):
+    proc = Process(target=run_test_agent_server, args=(test_agent,), daemon=True)
     proc.start()
+    sleep(1)  # Whatever
     yield
     proc.kill()
 
 
-@pytest.mark.asyncio
-async def test_bad_entrypoint(agent_server):
-    await sleep(5)
+async def query_test_agent(agent_server, message_payload):
     web_client = httpx.AsyncClient(timeout=None)
     a2a_client = a2a.client.A2AClient(web_client, url="http://localhost:9999")
 
-    send_message_payload = {
-        "message": {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "I need a sphynx"}
-            ],
-            "messageId": uuid4().hex,
-        },
-    }
+    send_message_payload = {"message": message_payload}
 
     request = SendStreamingMessageRequest(
         id=str(uuid4()), params=MessageSendParams(**send_message_payload)
     )
 
     messages = [message async for message in a2a_client.send_message_streaming(request)]
-
-    assert len(messages) == 9
+    return messages
 
 
 @pytest.mark.asyncio
 async def test_server(agent_server):
-    await sleep(2)
-    web_client = httpx.AsyncClient(timeout=None)
-    a2a_client = a2a.client.A2AClient(web_client, url="http://localhost:9999")
+    messages = await query_test_agent(agent_server, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
+        ],
+        "messageId": uuid4().hex,
+    })
 
-    send_message_payload = {
-        "message": {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "I need a sphynx"},
-                {"kind": "data", "data": {"entrypoint": {"id": "get_cat_image"}}},
-            ],
-            "messageId": uuid4().hex,
-        },
-    }
-
-    request = SendStreamingMessageRequest(
-        id=str(uuid4()), params=MessageSendParams(**send_message_payload)
-    )
-
-    messages = [message async for message in a2a_client.send_message_streaming(request)]
-
-    assert len(messages) == 9
+    assert len(messages) == 4

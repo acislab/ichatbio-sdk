@@ -18,7 +18,7 @@ class IChatBioAgent(ABC):
         pass
 
     @abstractmethod
-    def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[None, Message]:
+    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[None, Message]:
         """
         :param request: A natural language description of what the agent should do.
         :param entrypoint: The name of the entrypoint selected to handle this request.
