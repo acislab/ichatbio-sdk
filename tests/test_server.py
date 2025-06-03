@@ -6,7 +6,7 @@ from uuid import uuid4
 import a2a.client
 import httpx
 import pytest
-from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard
+from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard, TaskState
 from pydantic import BaseModel
 
 import ichatbio.types
@@ -83,3 +83,84 @@ async def test_server(agent_server):
     })
 
     assert len(messages) == 4
+
+
+@pytest.mark.asyncio
+async def test_strict_parameters(agent_server):
+    messages = await query_test_agent(agent_server, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {
+                "id": "strict_parameters",
+                "parameters": {"test_parameter": 1}
+            }}},
+        ],
+        "messageId": uuid4().hex,
+    })
+
+    assert len(messages) == 4
+
+
+@pytest.mark.asyncio
+async def test_missing_strict_parameters(agent_server):
+    messages = await query_test_agent(agent_server, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {"id": "strict_parameters"}}},
+        ],
+        "messageId": uuid4().hex,
+    })
+
+    assert messages[-1].root.result.status.state == TaskState.rejected
+
+
+@pytest.mark.asyncio
+async def test_optional_parameters(agent_server):
+    messages = await query_test_agent(agent_server, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {
+                "id": "optional_parameters",
+                "parameters": {"test_parameter": 1}
+            }}},
+        ],
+        "messageId": uuid4().hex,
+    })
+
+    assert len(messages) == 4
+
+
+@pytest.mark.asyncio
+async def test_missing_optional_parameters(agent_server):
+    messages = await query_test_agent(agent_server, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {
+                "id": "optional_parameters"
+            }}},
+        ],
+        "messageId": uuid4().hex,
+    })
+
+    assert len(messages) == 4
+
+
+@pytest.mark.asyncio
+async def test_bad_parameters(agent_server):
+    messages = await query_test_agent(agent_server, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {
+                "id": "strict_parameters",
+                "parameters": {"test_parameter": "this is not an integer!"}
+            }}},
+        ],
+        "messageId": uuid4().hex,
+    })
+
+    assert messages[-1].root.result.status.state == TaskState.rejected

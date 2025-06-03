@@ -14,23 +14,23 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.types import ProcessMessage, TextMessage, ArtifactMessage
 
 
-def fail_parsing_request(updater: TaskUpdater, exception):
-    updater.failed(new_agent_text_message(
-        "Refusing request; parsing error: " + str(exception)
-    ))
+def reject_on_parsing_error(updater: TaskUpdater, exception):
+    updater.update_status(TaskState.rejected, new_agent_text_message(
+        "Failed to parse request parameters: " + str(exception)
+    ), final=True)
 
 
-def fail_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
-    updater.failed(new_agent_text_message(
-        f"Refusing request; unrecognized entrypoint \"{entrypoint_id}\". Available entrypoints:\n" +
+def reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
+    updater.update_status(TaskState.rejected, new_agent_text_message(
+        f"Unrecognized entrypoint \"{entrypoint_id}\". Available entrypoints:\n" +
         "[" + ", ".join(e.id for e in agent.get_agent_card().entrypoints) + "]"
-    ))
+    ), final=True)
 
 
-def fail_parameters(updater: TaskUpdater, exception):
-    updater.failed(new_agent_text_message(
-        "Refusing request; parameters do not match schema: " + str(exception)
-    ))
+def reject_on_bad_parameters(updater: TaskUpdater, exception):
+    updater.update_status(TaskState.rejected, new_agent_text_message(
+        "Request parameters do not match schema: " + str(exception)
+    ), final=True)
 
 
 class IChatBioAgentExecutor(AgentExecutor):
@@ -62,18 +62,18 @@ class IChatBioAgentExecutor(AgentExecutor):
             raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else {}
 
         except (AttributeError, IndexError, KeyError) as e:
-            return fail_parsing_request(updater, e)
+            return reject_on_parsing_error(updater, e)
 
         entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
 
         if not entrypoint:
-            return fail_entrypoint(entrypoint_id, self.agent)
+            return reject_on_unrecognized_entrypoint(entrypoint_id, self.agent)
 
         if entrypoint.parameters is not None:
             try:
                 entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
             except ValidationError as e:
-                return fail_parameters(updater, e)
+                return reject_on_bad_parameters(updater, e)
         else:
             entrypoint_params = None
 
