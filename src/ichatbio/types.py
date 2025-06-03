@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type
 
 from pydantic import BaseModel, field_validator
 
@@ -15,7 +15,7 @@ class AgentEntrypoint(BaseModel):
     description: str
     """An explanation of what the agent can do through this entrypoint."""
 
-    parameters: Optional[BaseModel]
+    parameters: Optional[Type[BaseModel]]
     """Structured information that iChatBio must provide to use this entrypoint."""
 
 

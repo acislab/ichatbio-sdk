@@ -18,6 +18,12 @@ from ichatbio.types import Message, TextMessage, ArtifactMessage
 
 dotenv.load_dotenv()
 
+CataasResponseFormat = Literal["png", "json"]
+
+
+class GetCatImageParameters(BaseModel):
+    format: CataasResponseFormat = "png"
+
 
 class CataasAgent(IChatBioAgent):
     def __init__(self):
@@ -29,7 +35,7 @@ class CataasAgent(IChatBioAgent):
                 AgentEntrypoint(
                     id="get_cat_image",
                     description="Returns a random cat picture",
-                    parameters=None
+                    parameters=GetCatImageParameters
                 )
             ]
         )
@@ -39,19 +45,14 @@ class CataasAgent(IChatBioAgent):
         return self.agent_card
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[dict], **kwargs) -> AsyncGenerator[
-        Message, None]:
-        if not entrypoint == "get_cat_image":
-            # Complain
-            pass
-
+    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[Message, None]:
         openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         instructor_client = instructor.patch(openai_client)
 
         try:
             yield ProcessMessage(summary="Searching for cats", description="Generating search parameters")
 
-            cat = await instructor_client.chat.completions.create(
+            cat: CatModel = await instructor_client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 response_model=CatModel,
                 messages=[
@@ -62,7 +63,7 @@ class CataasAgent(IChatBioAgent):
                 max_retries=3
             )
 
-            url = cat.to_url()
+            url = cat.to_url(params.format)
 
             yield ProcessMessage(
                 summary="Retrieving cat",
@@ -123,17 +124,24 @@ class CatModel(BaseModel):
                                       examples=[["orange"], ["calico", "sleeping"]])
     message: Optional[MessageModel] = Field(None, description="Text to add to the picture.")
 
-    def to_url(self):
+    def to_url(self, format: CataasResponseFormat):
         url = "https://cataas.com/cat"
+        params = {}
+
+        if format == "json":
+            params |= {"json": True}
+
         if self.tags:
             url += "/" + ",".join(self.tags)
+
         if self.message:
             url += f"/says/" + urllib.parse.quote(self.message.text)
-            params = {}
             if self.message.font_size:
                 params |= {"fontSize": self.message.font_size}
             if self.message.font_color:
                 params |= {"fontColor": self.message.font_color}
-            if params:
-                url += "?" + urlencode(params)
+
+        if params:
+            url += "?" + urlencode(params)
+
         return url

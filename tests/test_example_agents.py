@@ -1,13 +1,13 @@
 import pytest
 
-from examples.cataas.agent import CataasAgent
+from examples.cataas.agent import CataasAgent, GetCatImageParameters
 from ichatbio.types import ArtifactMessage, ProcessMessage
 
 
 @pytest.mark.asyncio
 async def test_cataas():
     agent = CataasAgent()
-    response = agent.run("I need a Sphynx", "get_cat_image", None)
+    response = agent.run("I need a Sphynx", "get_cat_image", GetCatImageParameters())
     messages = [m async for m in response]
 
     process_summaries = [p.summary for p in messages if type(p) is ProcessMessage and p.summary]

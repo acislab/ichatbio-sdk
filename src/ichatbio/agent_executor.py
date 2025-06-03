@@ -59,7 +59,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
             raw_entrypoint_data = request_data["entrypoint"]
             entrypoint_id = raw_entrypoint_data["id"]
-            raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else None
+            raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else {}
 
         except (AttributeError, IndexError, KeyError) as e:
             return fail_parsing_request(updater, e)
@@ -71,7 +71,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
         if entrypoint.parameters is not None:
             try:
-                entrypoint_params = entrypoint.parameters(raw_entrypoint_params)
+                entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
             except ValidationError as e:
                 return fail_parameters(updater, e)
         else:
