@@ -51,11 +51,12 @@ By using Pydantic's `PastDate` class, the birthday must both be a valid date and
 these constraints, the agent does not need to worry about receiving invalid parameter values and subsequent error
 handling.
 
-Agent code:
+Here's an agent that implements the `"chat"` entrypoint:
 
 ```python
 from typing import Optional, override, AsyncGenerator
 from datetime import date
+from pydantic import BaseModel
 
 from ichatbio.agent import IChatBioAgent
 from ichatbio.types import AgentCard, Message, TextMessage, ProcessMessage, ArtifactMessage
@@ -67,7 +68,7 @@ class FriendlyAgent(IChatBioAgent):
         return card  # The AgentCard we defined earlier
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[dict], **kwargs) -> AsyncGenerator[
+    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
         None, Message]:
         if entrypoint != "chat":
             raise ValueError()  # This should never happen
@@ -93,6 +94,18 @@ class FriendlyAgent(IChatBioAgent):
             if happy_birthday else
             "I have generated a friendly response to the user's request.")
 ```
+
+And here's a `__main__.py` to run the agent as an A2A web server:
+
+```python
+from ichatbio.server import run_agent_server
+
+if __name__ == "__main__":
+    agent = FriendlyAgent()
+    run_agent_server(agent, host="0.0.0.0", port=9999)
+```
+
+If all went well, you should be able to find your agent card at http://localhost:9999/.well-known/agent.json.
 
 # SDK Development
 
