@@ -1,6 +1,6 @@
 [project]
 name = "ichatbio-sdk"
-version = "0.1.1"
+version = "0.1.2"
 readme = "README.md"
 authors = [
     { name = "Michael Elliott", email = "mielliott@ufl.edu" },
