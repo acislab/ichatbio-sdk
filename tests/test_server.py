@@ -6,6 +6,7 @@ from uuid import uuid4
 import a2a.client
 import httpx
 import pytest
+import requests
 from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard, TaskState
 from pydantic import BaseModel
 
@@ -13,6 +14,8 @@ import ichatbio.types
 from ichatbio.agent import IChatBioAgent
 from ichatbio.server import run_agent_server
 from ichatbio.types import AgentEntrypoint, Message, TextMessage
+
+AGENT_URL = "http://localhost:9999"
 
 
 @pytest.fixture
@@ -34,7 +37,7 @@ def test_agent():
                     AgentEntrypoint(id="optional_parameters", description="test", parameters=OptionalParameters),
                     AgentEntrypoint(id="strict_parameters", description="test", parameters=StrictParameters),
                 ],
-                url="http://localhost:9999"
+                url=AGENT_URL
             )
 
         async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
@@ -45,21 +48,21 @@ def test_agent():
 
 
 def run_test_agent_server(test_agent):
-    run_agent_server(test_agent, "0.0.0.0", 9999)
+    run_agent_server(test_agent, "0.0.0.0", 9999, AGENT_URL)
 
 
 @pytest.fixture
 def agent_server(test_agent):
     proc = Process(target=run_test_agent_server, args=(test_agent,), daemon=True)
     proc.start()
-    sleep(1)  # Whatever
+    sleep(2)  # Whatever
     yield
     proc.kill()
 
 
 async def query_test_agent(agent_server, message_payload):
     web_client = httpx.AsyncClient(timeout=None)
-    a2a_client = a2a.client.A2AClient(web_client, url="http://localhost:9999")
+    a2a_client = a2a.client.A2AClient(web_client, url=AGENT_URL)
 
     send_message_payload = {"message": message_payload}
 
@@ -164,3 +167,36 @@ async def test_bad_parameters(agent_server):
     })
 
     assert messages[-1].root.result.status.state == TaskState.rejected
+
+
+@pytest.mark.asyncio
+async def test_server_agent_card(agent_server):
+    card = requests.get(f"{AGENT_URL}/.well-known/agent.json").json()
+
+    assert card == {
+        'capabilities': {'streaming': True},
+        'defaultInputModes': ['text/plain'],
+        'defaultOutputModes': ['text/plain'],
+        'description': 'test',
+        'name': 'test',
+        'skills': [
+            {
+                'description': '{"description": "test"}',
+                'id': 'no_parameters',
+                'name': 'no_parameters',
+                'tags': ['ichatbio']},
+            {
+                'description': '{"description": "test", "parameters": {"properties": {"test_parameter": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "title": "Test Parameter"}}, "title": "OptionalParameters", "type": "object"}}',
+                'id': 'optional_parameters',
+                'name': 'optional_parameters',
+                'tags': ['ichatbio']},
+            {
+                'description': '{"description": "test", "parameters": {"properties": {"test_parameter": {"title": "Test Parameter", "type": "integer"}}, "required": ["test_parameter"], "title": "StrictParameters", "type": "object"}}',
+                'id': 'strict_parameters',
+                'name': 'strict_parameters',
+                'tags': ['ichatbio']
+            }
+        ],
+        'url': AGENT_URL,
+        'version': '1'
+    }

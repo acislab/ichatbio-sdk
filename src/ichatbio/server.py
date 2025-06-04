@@ -23,10 +23,9 @@ def convert_agent_card_to_a2a(card: AgentCard, url: str):
         skills=[a2a.types.AgentSkill(
             id=entrypoint.id,
             name=entrypoint.id,
-            description=json.dumps({
-                "description": entrypoint.description,
-                "parameters": entrypoint.parameters.model_json_schema()
-            }),
+            description=json.dumps({"description": entrypoint.description} | \
+                                   ({"parameters": entrypoint.parameters.model_json_schema()}
+                                    if entrypoint.parameters else {})),
             tags=["ichatbio"],
         ) for entrypoint in card.entrypoints],
     )
