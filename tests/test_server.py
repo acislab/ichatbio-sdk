@@ -1,25 +1,24 @@
-from multiprocessing import Process
-from time import sleep
 from typing import Optional, AsyncGenerator
 from uuid import uuid4
 
 import a2a.client
 import httpx
 import pytest
-import requests
+import pytest_asyncio
 from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard, TaskState
+from httpx import ASGITransport
 from pydantic import BaseModel
 
 import ichatbio.types
 from ichatbio.agent import IChatBioAgent
-from ichatbio.server import run_agent_server
+from ichatbio.server import build_agent_app
 from ichatbio.types import AgentEntrypoint, Message, TextMessage
 
 AGENT_URL = "http://localhost:9999"
 
 
 @pytest.fixture
-def test_agent():
+def agent():
     class OptionalParameters(BaseModel):
         test_parameter: Optional[int] = None
 
@@ -47,36 +46,33 @@ def test_agent():
     return TestAgent()
 
 
-def run_test_agent_server(test_agent):
-    run_agent_server(test_agent, "0.0.0.0", 9999, AGENT_URL)
+@pytest_asyncio.fixture
+async def agent_httpx_client(agent):
+    app = build_agent_app(agent)
+    transport = ASGITransport(app)
+    async with httpx.AsyncClient(transport=transport) as httpx_client:
+        yield httpx_client
 
 
-@pytest.fixture
-def agent_server(test_agent):
-    proc = Process(target=run_test_agent_server, args=(test_agent,), daemon=True)
-    proc.start()
-    sleep(2)  # Whatever
-    yield
-    proc.kill()
+@pytest_asyncio.fixture
+async def agent_a2a_client(agent_httpx_client):
+    return a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
 
 
-async def query_test_agent(agent_server, message_payload):
-    web_client = httpx.AsyncClient(timeout=None)
-    a2a_client = a2a.client.A2AClient(web_client, url=AGENT_URL)
-
+async def query_test_agent(agent_a2a_client, message_payload):
     send_message_payload = {"message": message_payload}
 
     request = SendStreamingMessageRequest(
         id=str(uuid4()), params=MessageSendParams(**send_message_payload)
     )
 
-    messages = [message async for message in a2a_client.send_message_streaming(request)]
+    messages = [m async for m in agent_a2a_client.send_message_streaming(request)]
     return messages
 
 
 @pytest.mark.asyncio
-async def test_server(agent_server):
-    messages = await query_test_agent(agent_server, {
+async def test_server(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -89,8 +85,8 @@ async def test_server(agent_server):
 
 
 @pytest.mark.asyncio
-async def test_strict_parameters(agent_server):
-    messages = await query_test_agent(agent_server, {
+async def test_strict_parameters(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -106,8 +102,8 @@ async def test_strict_parameters(agent_server):
 
 
 @pytest.mark.asyncio
-async def test_missing_strict_parameters(agent_server):
-    messages = await query_test_agent(agent_server, {
+async def test_missing_strict_parameters(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -120,8 +116,8 @@ async def test_missing_strict_parameters(agent_server):
 
 
 @pytest.mark.asyncio
-async def test_optional_parameters(agent_server):
-    messages = await query_test_agent(agent_server, {
+async def test_optional_parameters(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -137,8 +133,8 @@ async def test_optional_parameters(agent_server):
 
 
 @pytest.mark.asyncio
-async def test_missing_optional_parameters(agent_server):
-    messages = await query_test_agent(agent_server, {
+async def test_missing_optional_parameters(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -153,8 +149,8 @@ async def test_missing_optional_parameters(agent_server):
 
 
 @pytest.mark.asyncio
-async def test_bad_parameters(agent_server):
-    messages = await query_test_agent(agent_server, {
+async def test_bad_parameters(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -170,8 +166,9 @@ async def test_bad_parameters(agent_server):
 
 
 @pytest.mark.asyncio
-async def test_server_agent_card(agent_server):
-    card = requests.get(f"{AGENT_URL}/.well-known/agent.json").json()
+async def test_server_agent_card(agent_httpx_client):
+    response = await agent_httpx_client.get(f"{AGENT_URL}/.well-known/agent.json")
+    card = response.json()
 
     assert card == {
         'capabilities': {'streaming': True},
