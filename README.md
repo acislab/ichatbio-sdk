@@ -20,6 +20,7 @@ card = AgentCard(
     name="Friendly Agent",
     description="Responds in a friendly manner.",
     icon="https://example.com/icon.png",
+    url="https://example.agent.com",
     entrypoints=[
         AgentEntrypoint(
             id="chat",
