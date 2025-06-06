@@ -34,7 +34,11 @@ def reject_on_bad_parameters(updater: TaskUpdater, exception):
 
 
 class IChatBioAgentExecutor(AgentExecutor):
-    """Test AgentProxy Implementation."""
+    """
+    Translates incoming A2A requests into validated agent run parameters, runs the agent, translates outgoing iChatBio messages into A2A task updates to respond to the client's request.
+
+    Invalid requests (missing information, unrecognized entrypoint, bad entrypoint arguments) are rejected immediately without involving the agent.
+    """
 
     def __init__(self, agent: IChatBioAgent):
         self.agent = agent

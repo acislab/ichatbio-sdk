@@ -33,6 +33,9 @@ class AgentCard(BaseModel):
     icon: Optional[str]
     """URL for the image shown to iChatBio users to visually reference this agent."""
 
+    url: str
+    """URL at which the agent receives requests."""
+
     entrypoints: list[AgentEntrypoint]
     """Defines how iChatBio can interact with this agent."""
 

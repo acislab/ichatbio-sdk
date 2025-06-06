@@ -13,6 +13,7 @@ class FriendlyAgent(IChatBioAgent):
             name="The Simplest Agent",
             description="Can only say \"Hello world!\".",
             icon="https://commons.wikimedia.org/wiki/Category:Hello_World#/media/File:Qt_example.png",
+            url="http://localhost:9999",
             entrypoints=[
                 AgentEntrypoint(
                     id="hello",
