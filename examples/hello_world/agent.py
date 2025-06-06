@@ -6,7 +6,7 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.types import AgentCard, Message, AgentEntrypoint, TextMessage
 
 
-class FriendlyAgent(IChatBioAgent):
+class HelloWorldAgent(IChatBioAgent):
     @override
     def get_agent_card(self) -> AgentCard:
         return AgentCard(
