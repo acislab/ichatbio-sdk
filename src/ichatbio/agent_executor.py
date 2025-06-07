@@ -71,7 +71,7 @@ class IChatBioAgentExecutor(AgentExecutor):
         entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
 
         if not entrypoint:
-            return reject_on_unrecognized_entrypoint(entrypoint_id, self.agent)
+            return reject_on_unrecognized_entrypoint(updater, self.agent, entrypoint_id)
 
         if entrypoint.parameters is not None:
             try:

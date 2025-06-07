@@ -166,6 +166,22 @@ async def test_bad_parameters(agent_a2a_client):
 
 
 @pytest.mark.asyncio
+async def test_bad_entrypoint(agent_a2a_client):
+    messages = await query_test_agent(agent_a2a_client, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {
+                "id": "this_is_not_real"
+            }}},
+        ],
+        "messageId": uuid4().hex,
+    })
+
+    assert messages[-1].root.result.status.state == TaskState.rejected
+
+
+@pytest.mark.asyncio
 async def test_server_agent_card(agent_httpx_client):
     response = await agent_httpx_client.get(f"{AGENT_URL}/.well-known/agent.json")
     card = response.json()
