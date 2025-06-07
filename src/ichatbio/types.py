@@ -1,6 +1,6 @@
 from typing import Optional, Type, Annotated
 
-from pydantic import BaseModel, field_validator, AnyHttpUrl
+from pydantic import BaseModel, field_validator, AnyHttpUrl, StringConstraints
 
 
 class AgentEntrypoint(BaseModel):
@@ -23,6 +23,8 @@ class AgentCard(BaseModel):
     """
     Provides iChatBio with information about an agent and rules for interacting with it.
     """
+    id: str = Annotated[str, StringConstraints(min_length=2, pattern=r"^[a-zA-Z0-9_-]+$")]
+    """A unique identifier for the agent. Can only contain letters, numbers, and underscores."""
 
     name: str
     """The name used to identify the agent to iChatBio users."""
