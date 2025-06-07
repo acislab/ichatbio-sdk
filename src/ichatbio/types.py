@@ -1,5 +1,6 @@
 from typing import Optional, Type, Annotated
 
+import pydantic
 from annotated_types import MinLen
 from pydantic import BaseModel, AnyHttpUrl, StringConstraints
 
@@ -100,6 +101,12 @@ class ArtifactMessage(BaseModel):
 
     metadata: Optional[dict] = None
     """Anything related to the artifact, e.g. provenance, schema, landing page URLs, related artifact URIs."""
+
+    @pydantic.model_validator(mode="after")
+    def validate_content(self):
+        if not self.content and not self.uris:
+            raise ValueError("Either content or uris must be specified.")
+        return self
 
 
 Message = ProcessMessage | TextMessage | ArtifactMessage
