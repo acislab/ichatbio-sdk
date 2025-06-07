@@ -1,6 +1,6 @@
-from typing import Optional, Type
+from typing import Optional, Type, Annotated
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, AnyHttpUrl
 
 
 class AgentEntrypoint(BaseModel):
@@ -33,7 +33,7 @@ class AgentCard(BaseModel):
     icon: Optional[str]
     """URL for the image shown to iChatBio users to visually reference this agent."""
 
-    url: str
+    url: Optional[AnyHttpUrl]
     """URL at which the agent receives requests."""
 
     entrypoints: list[AgentEntrypoint]
