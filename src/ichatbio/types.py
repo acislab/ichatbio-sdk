@@ -15,7 +15,7 @@ class AgentEntrypoint(BaseModel):
     description: str
     """An explanation of what the agent can do through this entrypoint."""
 
-    parameters: Optional[Type[BaseModel]]
+    parameters: Optional[Type[BaseModel]] = None
     """Structured information that iChatBio must provide to use this entrypoint."""
 
 
