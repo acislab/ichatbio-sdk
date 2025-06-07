@@ -1,6 +1,9 @@
 from typing import Optional, Type, Annotated
 
-from pydantic import BaseModel, field_validator, AnyHttpUrl, StringConstraints
+from annotated_types import MinLen
+from pydantic import BaseModel, AnyHttpUrl, StringConstraints
+
+IDString = Annotated[str, StringConstraints(min_length=2, pattern=r"^[a-zA-Z0-9_-]+$")]
 
 
 class AgentEntrypoint(BaseModel):
@@ -9,8 +12,8 @@ class AgentEntrypoint(BaseModel):
     this data model. Validation of the model is performed by the agent. Messages that violate this model
     will be returned to iChatBio.
     """
-    id: str
-    """The identifier for this entrypoint. Try to make the ID informative. For example, "search_idigbio"."""
+    id: IDString
+    """The identifier for this entrypoint. Can only contain letters, numbers, and underscores. Try to make the ID informative and concise. For example, "search_idigbio"."""
 
     description: str
     """An explanation of what the agent can do through this entrypoint."""
@@ -23,7 +26,7 @@ class AgentCard(BaseModel):
     """
     Provides iChatBio with information about an agent and rules for interacting with it.
     """
-    id: str = Annotated[str, StringConstraints(min_length=2, pattern=r"^[a-zA-Z0-9_-]+$")]
+    id: IDString
     """A unique identifier for the agent. Can only contain letters, numbers, and underscores."""
 
     name: str
@@ -32,21 +35,14 @@ class AgentCard(BaseModel):
     description: str
     """Describes the agent to both the iChatBio assistant and users."""
 
-    icon: Optional[str]
+    icon: Optional[str] = None
     """URL for the image shown to iChatBio users to visually reference this agent."""
 
-    url: Optional[AnyHttpUrl]
+    url: Optional[AnyHttpUrl] = None
     """URL at which the agent receives requests."""
 
-    entrypoints: list[AgentEntrypoint]
+    entrypoints: Annotated[list[AgentEntrypoint], MinLen(1)]
     """Defines how iChatBio can interact with this agent."""
-
-    @field_validator("entrypoints")
-    @classmethod
-    def validate_entrypoints(cls, v):
-        if len(v) < 1:
-            raise ValueError("Agent must have at least one entrypoint")
-        return v
 
 
 class ProcessMessage(BaseModel):
