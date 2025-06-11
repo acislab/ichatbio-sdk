@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, AsyncGenerator
 from uuid import uuid4
 
@@ -14,7 +15,14 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.server import build_agent_app
 from ichatbio.types import AgentEntrypoint, Message, TextMessage
 
-AGENT_URL = "http://localhost:9999"
+AGENT_URL = "http://test.agent"
+
+
+@pytest.fixture(autouse=True)
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture
@@ -28,13 +36,15 @@ def agent():
     class TestAgent(IChatBioAgent):
         def get_agent_card(self) -> AgentCard:
             return ichatbio.types.AgentCard(
-                name="test",
-                description="test",
+                name="Test Name",
+                description="Test description.",
                 icon=None,
                 entrypoints=[
-                    AgentEntrypoint(id="no_parameters", description="test", parameters=None),
-                    AgentEntrypoint(id="optional_parameters", description="test", parameters=OptionalParameters),
-                    AgentEntrypoint(id="strict_parameters", description="test", parameters=StrictParameters),
+                    AgentEntrypoint(id="no_parameters", description="Test description.", parameters=None),
+                    AgentEntrypoint(id="optional_parameters", description="Test description.",
+                                    parameters=OptionalParameters),
+                    AgentEntrypoint(id="strict_parameters", description="Test description.",
+                                    parameters=StrictParameters),
                 ],
                 url=AGENT_URL
             )
@@ -71,7 +81,7 @@ async def query_test_agent(agent_a2a_client, message_payload):
 
 
 @pytest.mark.asyncio
-async def test_server(agent_a2a_client):
+async def test_server(event_loop, agent_a2a_client):
     messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
@@ -85,7 +95,9 @@ async def test_server(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_strict_parameters(agent_a2a_client):
+async def test_strict_parameters(event_loop, agent_a2a_client):
+    asyncio.new_event_loop()
+
     messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
@@ -190,21 +202,21 @@ async def test_server_agent_card(agent_httpx_client):
         'capabilities': {'streaming': True},
         'defaultInputModes': ['text/plain'],
         'defaultOutputModes': ['text/plain'],
-        'description': 'test',
-        'name': 'test',
+        'description': 'Test description.',
+        'name': 'Test Name',
         'skills': [
             {
-                'description': '{"description": "test"}',
+                'description': '{"description": "Test description."}',
                 'id': 'no_parameters',
                 'name': 'no_parameters',
                 'tags': ['ichatbio']},
             {
-                'description': '{"description": "test", "parameters": {"properties": {"test_parameter": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "title": "Test Parameter"}}, "title": "OptionalParameters", "type": "object"}}',
+                'description': '{"description": "Test description.", "parameters": {"properties": {"test_parameter": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "title": "Test Parameter"}}, "title": "OptionalParameters", "type": "object"}}',
                 'id': 'optional_parameters',
                 'name': 'optional_parameters',
                 'tags': ['ichatbio']},
             {
-                'description': '{"description": "test", "parameters": {"properties": {"test_parameter": {"title": "Test Parameter", "type": "integer"}}, "required": ["test_parameter"], "title": "StrictParameters", "type": "object"}}',
+                'description': '{"description": "Test description.", "parameters": {"properties": {"test_parameter": {"title": "Test Parameter", "type": "integer"}}, "required": ["test_parameter"], "title": "StrictParameters", "type": "object"}}',
                 'id': 'strict_parameters',
                 'name': 'strict_parameters',
                 'tags': ['ichatbio']
