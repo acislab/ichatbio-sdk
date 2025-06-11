@@ -29,7 +29,8 @@ example = [
     "dotenv~=0.9.9",
     "python-dotenv~=1.1.0",
     "pytest~=8.3.5",
-    "pytest-asyncio~=1.0.0a1"
+    "pytest-asyncio~=1.0.0a1",
+    "email-validator~=2.2.0"
 ]
 
 [project.urls]
