@@ -27,9 +27,6 @@ class AgentCard(BaseModel):
     """
     Provides iChatBio with information about an agent and rules for interacting with it.
     """
-    id: IDString
-    """A unique identifier for the agent. Can only contain letters, numbers, and underscores."""
-
     name: str
     """The name used to identify the agent to iChatBio users."""
 
@@ -39,7 +36,7 @@ class AgentCard(BaseModel):
     icon: Optional[str] = None
     """URL for the image shown to iChatBio users to visually reference this agent."""
 
-    url: Optional[AnyHttpUrl] = None
+    url: Annotated[Optional[str], AnyHttpUrl] = None
     """URL at which the agent receives requests."""
 
     entrypoints: Annotated[list[AgentEntrypoint], MinLen(1)]
