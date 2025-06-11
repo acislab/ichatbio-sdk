@@ -16,7 +16,7 @@ def convert_agent_card_to_a2a(card: AgentCard):
     return a2a.types.AgentCard(
         name=card.name,
         description=card.description,
-        url=card.url,
+        url=str(card.url),
         version="1",
         capabilities=a2a.types.AgentCapabilities(streaming=True),
         defaultInputModes=["text/plain"],

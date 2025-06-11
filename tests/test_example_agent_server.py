@@ -42,9 +42,7 @@ async def test_server(agent_a2a_client):
         },
     }
 
-    request = SendStreamingMessageRequest(
-        id=str(uuid4()), params=MessageSendParams(**send_message_payload)
-    )
+    request = SendStreamingMessageRequest(params=MessageSendParams(**send_message_payload))
 
     messages = [message async for message in agent_a2a_client.send_message_streaming(request)]
 
