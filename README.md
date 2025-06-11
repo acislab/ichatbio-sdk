@@ -11,6 +11,12 @@ types, and shared persistent storage) enabled by the iChatBio ecosystem.
 See [examples](examples) for a reference agent implementation. A standalone example agent is
 available [here](https://github.com/mielliott/ichatbio-agent-example).
 
+The iChatBio SDK is available on PyPI:
+
+```sh
+pip install ichatbio-sdk
+```
+
 Like A2A, iChatBio agents must define an agent card. Here's an example card:
 
 ```python
