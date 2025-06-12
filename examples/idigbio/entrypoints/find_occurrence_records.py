@@ -129,7 +129,7 @@ Here is a description of how iDigBio queries are formatted:
 
 def get_system_prompt():
     query_format_doc = importlib.resources.files().joinpath("..", "resources", "records_query_format.md").read_text()
-    examples_doc = importlib.resources.files().joinpath("..", "resources", "records_query_format.md").read_text()
+    examples_doc = importlib.resources.files().joinpath("..", "resources", "records_examples.md").read_text()
 
     return SYSTEM_PROMPT_TEMPLATE.format(
         query_format_doc=query_format_doc,
