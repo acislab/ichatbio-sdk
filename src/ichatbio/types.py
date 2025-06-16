@@ -1,8 +1,9 @@
+import re
 from typing import Optional, Type, Annotated
 
 import pydantic
 from annotated_types import MinLen
-from pydantic import BaseModel, AnyHttpUrl, StringConstraints
+from pydantic import BaseModel, AnyHttpUrl, StringConstraints, WithJsonSchema
 
 IDString = Annotated[str, StringConstraints(min_length=2, pattern=r"^[a-zA-Z0-9_-]+$")]
 
@@ -107,3 +108,42 @@ class ArtifactMessage(BaseModel):
 
 
 Message = ProcessMessage | TextMessage | ArtifactMessage
+
+_URL_PATTERN = re.compile(r"^https?://")
+
+
+class _ArtifactDescription(BaseModel):
+    local_id: str
+    """Locally identifies the artifact in the context of a iChatBio conversation."""
+
+    description: str
+    """A brief (~50 characters) description of the artifact."""
+
+    mimetype: str
+    """The MIME type of the artifact, e.g. ``text/plain``, ``application/json``, ``image/png``."""
+
+    uris: list[str]
+    """Identifiers associated with the artifact. Usually, one of these URIs is a resolvable URL."""
+
+    metadata: dict
+    """Anything related to the artifact, e.g. provenance, schema, landing page URLs, related artifact URIs."""
+
+    def get_urls(self) -> list[str]:
+        return [uri for uri in self.uris if _URL_PATTERN.match(uri)]
+
+
+Artifact = Annotated[
+    _ArtifactDescription,
+    WithJsonSchema(
+        {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{4}$",
+            "examples": ["#0a9f"]
+        },
+        # mode="serialization"
+    )
+]
+"""
+An entrypoint parameter to instruct iChatBio to provide an artifact description. The artifact's content may be retrieved
+using one of the artifact description's associated URIs.
+"""
