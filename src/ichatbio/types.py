@@ -114,7 +114,7 @@ _URL_PATTERN = re.compile(r"^https?://")
 
 class _ArtifactDescription(BaseModel):
     local_id: str
-    """Locally identifies the artifact in the context of a iChatBio conversation."""
+    """Locally identifies the artifact in the context of an iChatBio conversation."""
 
     description: str
     """A brief (~50 characters) description of the artifact."""
@@ -139,11 +139,10 @@ Artifact = Annotated[
             "type": "string",
             "pattern": "^#[0-9a-f]{4}$",
             "examples": ["#0a9f"]
-        },
-        # mode="serialization"
+        }
     )
 ]
 """
-An entrypoint parameter to instruct iChatBio to provide an artifact description. The artifact's content may be retrieved
-using one of the artifact description's associated URIs.
+An entrypoint parameter to instruct iChatBio to provide an artifact description, which contains metadata about the
+artifact and how to access its content.
 """
