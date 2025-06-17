@@ -1,4 +1,5 @@
 import importlib.resources
+from typing import AsyncIterator
 
 import instructor
 from instructor import AsyncInstructor
@@ -8,16 +9,18 @@ from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
 from examples.util.ai import StopOnTerminalErrorOrMaxAttempts, AIGenerationException
-from ichatbio.types import AgentEntrypoint, ProcessMessage, TextMessage, ArtifactMessage
+from ichatbio.types import AgentEntrypoint, ProcessMessage, TextMessage, ArtifactMessage, Message
 from ..schema import IDigBioRecordsApiParameters
 from ..util import query_idigbio_api, make_idigbio_api_url, make_idigbio_portal_url
 
+# This description helps iChatBio understand when to call this entrypoint
 description = """\
 Searches for species occurrence records using the iDigBio Portal or the iDigBio records API. Returns the total number 
 of records that were found, the URL used to call the iDigBio Records API to perform the search, and a URL to view the 
 results in the iDigBio Search Portal.
 """
 
+# This gets included in the agent card
 entrypoint = AgentEntrypoint(
     id="find_occurrence_records",
     description=description,
@@ -25,7 +28,12 @@ entrypoint = AgentEntrypoint(
 )
 
 
-async def run(request: str):
+async def run(request: str) -> AsyncIterator[Message]:
+    """
+    Executes this specific entrypoint. See description above. This function yields a sequence of messages that are
+    returned one-by-one to iChatBio in response to the request, logging the retrieval process in real time. Any records
+    retrieved from the iDigBio API are packaged as an JSON artifact that iChatBio can interact with.
+    """
     yield ProcessMessage(summary="Searching iDigBio",
                          description="Generating search parameters for species occurrences")
     try:
