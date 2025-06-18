@@ -14,21 +14,21 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.types import ProcessMessage, TextMessage, ArtifactMessage
 
 
-def reject_on_parsing_error(updater: TaskUpdater, exception):
-    updater.update_status(TaskState.rejected, new_agent_text_message(
+async def reject_on_parsing_error(updater: TaskUpdater, exception):
+    await updater.update_status(TaskState.rejected, new_agent_text_message(
         "Failed to parse request parameters: " + str(exception)
     ), final=True)
 
 
-def reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
-    updater.update_status(TaskState.rejected, new_agent_text_message(
+async def reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
+    await updater.update_status(TaskState.rejected, new_agent_text_message(
         f"Unrecognized entrypoint \"{entrypoint_id}\". Available entrypoints:\n" +
         "[" + ", ".join(e.id for e in agent.get_agent_card().entrypoints) + "]"
     ), final=True)
 
 
-def reject_on_bad_parameters(updater: TaskUpdater, exception):
-    updater.update_status(TaskState.rejected, new_agent_text_message(
+async def reject_on_bad_parameters(updater: TaskUpdater, exception):
+    await updater.update_status(TaskState.rejected, new_agent_text_message(
         "Request parameters do not match schema: " + str(exception)
     ), final=True)
 
@@ -54,7 +54,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
         # Immediately notify that the task is submitted.
         if not context.current_task:
-            updater.submit()
+            await updater.submit()
 
         # TODO: for now, assume messages begin with a text part and a data part
         try:
@@ -66,22 +66,22 @@ class IChatBioAgentExecutor(AgentExecutor):
             raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else {}
 
         except (AttributeError, IndexError, KeyError) as e:
-            return reject_on_parsing_error(updater, e)
+            return await reject_on_parsing_error(updater, e)
 
         entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
 
         if not entrypoint:
-            return reject_on_unrecognized_entrypoint(updater, self.agent, entrypoint_id)
+            return await reject_on_unrecognized_entrypoint(updater, self.agent, entrypoint_id)
 
         if entrypoint.parameters is not None:
             try:
                 entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
             except ValidationError as e:
-                return reject_on_bad_parameters(updater, e)
+                return await reject_on_bad_parameters(updater, e)
         else:
             entrypoint_params = None
 
-        updater.start_work()
+        await updater.start_work()
 
         async for message in self.agent.run(request_text, entrypoint_id, entrypoint_params):
             match message:
@@ -123,7 +123,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                 case _:
                     raise ValueError("Outgoing messages must be of type ProcessMessage | TextMessage | ArtifactMessage")
 
-            updater.update_status(
+            await updater.update_status(
                 TaskState.working,
                 new_agent_parts_message(
                     [Part(root=p) for p in parts],
@@ -131,7 +131,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                     context.task_id)
             )
 
-        updater.complete()
+        await updater.complete()
 
     @override
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
