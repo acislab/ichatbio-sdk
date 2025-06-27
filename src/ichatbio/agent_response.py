@@ -53,7 +53,7 @@ class ResponseChannel:
                     "ichatbio_context_id": context_id
                 }
 
-                parts = [TextPart(text=text, metadata=data)]
+                parts = [TextPart(text=text, metadata=metadata)]
                 if data is not None:
                     parts.append(DataPart(data=data, metadata=metadata))
 
