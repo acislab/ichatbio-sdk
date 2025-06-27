@@ -11,7 +11,7 @@ from attr import dataclass
 
 
 @dataclass
-class TextResponse:
+class DirectResponse:
     text: str
     data: Optional[dict] = None
 
@@ -37,7 +37,7 @@ class ArtifactResponse:
     metadata: Optional[dict] = None
 
 
-ResponseMessage = TextResponse | ProcessBeginResponse | ProcessLogResponse | ArtifactResponse
+ResponseMessage = DirectResponse | ProcessBeginResponse | ProcessLogResponse | ArtifactResponse
 
 
 class ResponseChannel:
@@ -47,9 +47,9 @@ class ResponseChannel:
 
     async def submit(self, message: ResponseMessage, context_id: str):
         match message:
-            case TextResponse(text=text, data=data):
+            case DirectResponse(text=text, data=data):
                 metadata = {
-                    "ichatbio_type": "text_response",
+                    "ichatbio_type": "direct_response",
                     "ichatbio_context_id": context_id
                 }
 
@@ -189,7 +189,7 @@ class ResponseContext:
         :param text: A natural language response to the assistant's request.
         :param data: Structured information related to the message.
         """
-        await self._channel.submit(TextResponse(text, data), self._root_context_id)
+        await self._channel.submit(DirectResponse(text, data), self._root_context_id)
 
     @asynccontextmanager
     async def begin_process(self, summary: str, metadata: Optional[dict] = None) -> \

@@ -5,7 +5,7 @@ from examples.cataas.agent import CataasAgent, GetCatImageParameters
 from examples.hello_world.agent import HelloWorldAgent
 from examples.idigbio.agent import IDigBioAgent
 from examples.vision.agent import VisionAgent
-from ichatbio.agent_response import ProcessLogResponse, ArtifactResponse, ProcessBeginResponse, TextResponse
+from ichatbio.agent_response import ProcessLogResponse, ArtifactResponse, ProcessBeginResponse, DirectResponse
 
 
 @pytest.mark.asyncio
@@ -15,7 +15,7 @@ async def test_hello(context, messages):
     assert messages == [
         ProcessBeginResponse("Thinking"),
         ProcessLogResponse("Hello world!"),
-        TextResponse("I said it!")
+        DirectResponse("I said it!")
     ]
 
 
