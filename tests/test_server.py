@@ -56,7 +56,7 @@ def agent():
     return TestAgent()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def agent_httpx_client(agent):
     app = build_agent_app(agent)
     transport = ASGITransport(app)
@@ -64,9 +64,9 @@ async def agent_httpx_client(agent):
         yield httpx_client
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def agent_a2a_client(agent_httpx_client):
-    return a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
+    yield a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
 
 
 async def query_test_agent(agent_a2a_client, message_payload):
