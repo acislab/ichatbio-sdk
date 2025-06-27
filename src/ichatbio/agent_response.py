@@ -48,7 +48,14 @@ class ResponseChannel:
     async def submit(self, message: ResponseMessage, context_id: str):
         match message:
             case TextResponse(text=text, data=data):
+                metadata = {
+                    "ichatbio_type": "text_response",
+                    "ichatbio_context_id": context_id
+                }
+
                 parts = [TextPart(text=text, metadata=data)]
+                if data is not None:
+                    parts.append(DataPart(data=data, metadata=metadata))
 
             case ProcessBeginResponse(summary=summary, data=data):
                 metadata = {
