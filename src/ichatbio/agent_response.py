@@ -59,7 +59,7 @@ class ResponseChannel:
 
             case ProcessBeginResponse(summary=summary, data=data):
                 metadata = {
-                    "ichatbio_type": "begin_process",
+                    "ichatbio_type": "begin_process_response",
                     "ichatbio_context_id": context_id
                 }
 
@@ -83,6 +83,10 @@ class ResponseChannel:
                     "ichatbio_type": "artifact_response",
                     "ichatbio_context_id": context_id
                 }
+                data = {
+                    "metadata": artifact_metadata,
+                    "uris": uris if uris else []
+                }
 
                 if content is not None:
                     file = FileWithBytes(
@@ -101,7 +105,7 @@ class ResponseChannel:
 
                 parts = [
                     FilePart(file=file, metadata=metadata),
-                    DataPart(data={"uris": uris, "metadata": artifact_metadata}, metadata=metadata)
+                    DataPart(data=data, metadata=metadata)
                 ]
 
             case _:
