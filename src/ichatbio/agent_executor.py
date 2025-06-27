@@ -14,20 +14,20 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.types import ProcessMessage, TextMessage, ArtifactMessage
 
 
-async def reject_on_parsing_error(updater: TaskUpdater, exception):
+async def _reject_on_parsing_error(updater: TaskUpdater, exception):
     await updater.update_status(TaskState.rejected, new_agent_text_message(
         "Failed to parse request parameters: " + str(exception)
     ), final=True)
 
 
-async def reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
+async def _reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
     await updater.update_status(TaskState.rejected, new_agent_text_message(
         f"Unrecognized entrypoint \"{entrypoint_id}\". Available entrypoints:\n" +
         "[" + ", ".join(e.id for e in agent.get_agent_card().entrypoints) + "]"
     ), final=True)
 
 
-async def reject_on_bad_parameters(updater: TaskUpdater, exception):
+async def _reject_on_bad_parameters(updater: TaskUpdater, exception):
     await updater.update_status(TaskState.rejected, new_agent_text_message(
         "Request parameters do not match schema: " + str(exception)
     ), final=True)
@@ -66,18 +66,18 @@ class IChatBioAgentExecutor(AgentExecutor):
             raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else {}
 
         except (AttributeError, IndexError, KeyError) as e:
-            return await reject_on_parsing_error(updater, e)
+            return await _reject_on_parsing_error(updater, e)
 
         entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
 
         if not entrypoint:
-            return await reject_on_unrecognized_entrypoint(updater, self.agent, entrypoint_id)
+            return await _reject_on_unrecognized_entrypoint(updater, self.agent, entrypoint_id)
 
         if entrypoint.parameters is not None:
             try:
                 entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
             except ValidationError as e:
-                return await reject_on_bad_parameters(updater, e)
+                return await _reject_on_bad_parameters(updater, e)
         else:
             entrypoint_params = None
 
