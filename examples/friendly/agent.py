@@ -1,15 +1,16 @@
 from datetime import date
-from typing import Optional, override, AsyncGenerator
+from typing import override
 
 from pydantic import BaseModel
 from pydantic import PastDate
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import AgentCard, Message, TextMessage, ProcessMessage, ArtifactMessage
+from ichatbio.agent_response import ResponseContext
+from ichatbio.types import AgentCard
 from ichatbio.types import AgentEntrypoint
 
 
-class ChatParameters(BaseModel):
+class Parameters(BaseModel):
     birthday: PastDate
 
 
@@ -22,7 +23,7 @@ card = AgentCard(
         AgentEntrypoint(
             id="chat",
             description="Generates a friendly reply.",
-            parameters=ChatParameters  # Defined below
+            parameters=Parameters  # Defined below
         )
     ]
 )
@@ -34,28 +35,29 @@ class FriendlyAgent(IChatBioAgent):
         return card  # The AgentCard we defined earlier
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
-        None, Message]:
+    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Parameters):
         if entrypoint != "chat":
             raise ValueError()  # This should never happen
 
-        yield ProcessMessage(summary="Replying",
-                             description="Generating a friendly reply")
-        response = ...  # Query an LLM
+        async with context.begin_process(summary="Replying") as process:
+            await process.log("Generating a friendly reply")
+            response = ...  # Query an LLM
 
-        yield ProcessMessage(description="Response generated",
-                             data={"response": response})
+            await process.log("Response generated", data={"response": response})
 
-        happy_birthday = ChatParameters(params).birthday == date.today()
-        if happy_birthday:
-            yield ProcessMessage(description="Generating a birthday surprise")
-            audio: bytes = ...  # Generate an audio version of the response
-            yield ArtifactMessage(
-                mimetype="audio/mpeg",
-                description=f"An audio version of the response",
-                content=audio)
+            happy_birthday = params.birthday == date.today()
+            if happy_birthday:
+                process.log("Generating a birthday surprise")
+                audio: bytes = ...  # Generate an audio version of the response
+                process.create_artifact(
+                    mimetype="audio/mpeg",
+                    description=f"An audio version of the response",
+                    content=audio
+                )
 
-        yield TextMessage(
-            "I have generated a friendly response to the user's request. For their birthday, I also generated an audio version of the response."
-            if happy_birthday else
-            "I have generated a friendly response to the user's request.")
+            await context.reply(
+                "I have generated a friendly response to the user's request. For their birthday, I also generated an"
+                " audio version of the response."
+                if happy_birthday else
+                "I have generated a friendly response to the user's request."
+            )

@@ -1,17 +1,14 @@
-import base64
-
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
-from a2a.types import UnsupportedOperationError, TextPart, Part, DataPart, FilePart, FileWithBytes, FileWithUri, \
-    TaskState
-from a2a.utils import new_agent_parts_message, new_agent_text_message
+from a2a.types import UnsupportedOperationError, TaskState
+from a2a.utils import new_agent_text_message
 from a2a.utils.errors import ServerError
 from pydantic import ValidationError
 from typing_extensions import override
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import ProcessMessage, TextMessage, ArtifactMessage
+from ichatbio.agent_response import ResponseContext, ResponseChannel
 
 
 async def _reject_on_parsing_error(updater: TaskUpdater, exception):
@@ -83,53 +80,9 @@ class IChatBioAgentExecutor(AgentExecutor):
 
         await updater.start_work()
 
-        async for message in self.agent.run(request_text, entrypoint_id, entrypoint_params):
-            match message:
-                case ProcessMessage(summary=summary, description=description, data=data):
-                    parts = [DataPart(data={
-                        "summary": summary,
-                        "description": description,
-                        "data": data
-                    })]
-
-                case TextMessage(text=text, data=data):
-                    parts = [TextPart(text=text, metadata=data)]
-
-                case ArtifactMessage(uris=uris, content=content, mimetype=mimetype, metadata=metadata,
-                                     description=description):
-                    if content:
-                        file = FileWithBytes(
-                            bytes=base64.b64encode(content),
-                            mimeType=mimetype,
-                            name=description
-                        )
-                    elif uris:
-                        file = FileWithUri(
-                            uri=uris[0],
-                            mimeType=mimetype,
-                            name=description
-                        )
-                    else:
-                        raise ValueError("Artifact message must have at least one URI or non-empty content")
-
-                    parts = [FilePart(
-                        file=file,
-                        metadata={
-                            "uris": uris,
-                            "metadata": metadata
-                        }
-                    )]
-
-                case _:
-                    raise ValueError("Outgoing messages must be of type ProcessMessage | TextMessage | ArtifactMessage")
-
-            await updater.update_status(
-                TaskState.working,
-                new_agent_parts_message(
-                    [Part(root=p) for p in parts],
-                    context.context_id,
-                    context.task_id)
-            )
+        response_channel = ResponseChannel(context, updater)
+        response_context = ResponseContext(response_channel, context.task_id)
+        await self.agent.run(response_context, request_text, entrypoint_id, entrypoint_params)
 
         await updater.complete()
 

@@ -1,6 +1,6 @@
 import os
 import urllib.parse
-from typing import Optional, Literal, override, AsyncGenerator
+from typing import Optional, Literal, override
 from urllib.parse import urlencode
 
 import dotenv
@@ -13,8 +13,8 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import AgentCard, AgentEntrypoint, ProcessMessage
-from ichatbio.types import Message, TextMessage, ArtifactMessage
+from ichatbio.agent_response import ResponseContext
+from ichatbio.types import AgentCard, AgentEntrypoint
 
 dotenv.load_dotenv()
 
@@ -46,40 +46,35 @@ class CataasAgent(IChatBioAgent):
         return self.agent_card
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[Message, None]:
-        openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        instructor_client = instructor.patch(openai_client)
+    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: GetCatImageParameters):
+        async with context.begin_process(summary="Searching for cats") as process:
+            await process.log("Generating search parameters")
 
-        try:
-            yield ProcessMessage(summary="Searching for cats", description="Generating search parameters")
+            try:
+                openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                instructor_client = instructor.patch(openai_client)
+                cat: CatModel = await instructor_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    response_model=CatModel,
+                    messages=[
+                        {"role": "system",
+                         "content": "You translate user requests into Cat-As-A-Service (cataas.com) API parameters."},
+                        {"role": "user", "content": request}
+                    ],
+                    max_retries=3
+                )
+            except InstructorRetryException:
+                await process.log("Failed to generate search parameters")
+                return
 
-            cat: CatModel = await instructor_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                response_model=CatModel,
-                messages=[
-                    {"role": "system",
-                     "content": "You translate user requests into Cat-As-A-Service (cataas.com) API parameters."},
-                    {"role": "user", "content": request}
-                ],
-                max_retries=3
-            )
+            await process.log("Search parameters", data={"search_parameters": cat.model_dump(exclude_none=True)})
 
             url = cat.to_url(params.format)
-
-            yield ProcessMessage(
-                summary="Retrieving cat",
-                description=f"Search parameters",
-                data={
-                    "search_parameters": cat.model_dump(exclude_none=True)
-                })
-
-            yield ProcessMessage(description=f"Sending GET request to {url}")
-
+            await process.log(f"Sending GET request to {url}")
             response = requests.get(url)
 
-            yield ProcessMessage(summary="Cat retrieved", description=f"Received {len(response.content)} bytes")
-
-            yield ArtifactMessage(
+            await process.log(f"Received {len(response.content)} bytes")
+            await process.create_artifact(
                 mimetype="image/png",
                 description=f"A random cat saying \"{cat.message}\"" if cat.message else "A random cat",
                 content=response.content,
@@ -88,12 +83,10 @@ class CataasAgent(IChatBioAgent):
                 }
             )
 
-            yield TextMessage(text="The generated artifact contains the requested image. Note that the artifact's "
-                                   "api_query_url returns random images so it should not be considered a location "
-                                   "or identifier for the image.")
-
-        except InstructorRetryException as e:
-            yield TextMessage(text="Sorry, I couldn't find any cat images.")
+        await context.reply(
+            "The generated artifact contains the requested image. Note that the artifact's api_query_url returns random"
+            " images, so it should not be considered a location or identifier for the image."
+        )
 
 
 COLORS = Literal[

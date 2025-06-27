@@ -1,12 +1,17 @@
-from typing import override, Optional, AsyncGenerator
+from typing import override, Optional
 
 from pydantic import BaseModel
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import AgentCard, Message, AgentEntrypoint, TextMessage
+from ichatbio.agent_response import ResponseContext
+from ichatbio.types import AgentCard, AgentEntrypoint
 
 
 class HelloWorldAgent(IChatBioAgent):
+    """
+    A simple example agent with a single entrypoint.
+    """
+    
     @override
     def get_agent_card(self) -> AgentCard:
         return AgentCard(
@@ -24,6 +29,12 @@ class HelloWorldAgent(IChatBioAgent):
         )
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
-        None, Message]:
-        yield TextMessage(text="Hello world!")
+    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+        # Start a process to log the agent's actions
+        async with context.begin_process(summary="Thinking") as process:
+            # Perform any long-running work in this process block, logging steps taken and their outcomes. iChatBio
+            # users can see these log messages.
+            await process.log("Hello world!")
+
+        # Reply directly to the iChatBio agent, not the user
+        await context.reply("I said it!")

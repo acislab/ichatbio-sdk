@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, AsyncGenerator
+from typing import Optional
 from uuid import uuid4
 
 import a2a.client
@@ -12,8 +12,9 @@ from pydantic import BaseModel
 
 import ichatbio.types
 from ichatbio.agent import IChatBioAgent
+from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
-from ichatbio.types import AgentEntrypoint, Message, TextMessage
+from ichatbio.types import AgentEntrypoint
 
 AGENT_URL = "http://test.agent"
 
@@ -49,9 +50,8 @@ def agent():
                 url=AGENT_URL
             )
 
-        async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
-            None, Message]:
-            yield TextMessage(text="first message")
+        async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+            await context.reply("first message")
 
     return TestAgent()
 
@@ -88,10 +88,16 @@ async def test_server(event_loop, agent_a2a_client):
             {"kind": "text", "text": "Do something for me"},
             {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
         ],
-        "messageId": uuid4().hex,
+        "messageId": str(uuid4()),
     })
 
-    assert len(messages) == 4
+    assert messages[0].root.result.status.state == TaskState.submitted
+
+    assert len(messages) >= 3
+    for m in messages[1:-1]:
+        assert m.root.result.status.state == TaskState.working
+
+    assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio
@@ -107,10 +113,10 @@ async def test_strict_parameters(event_loop, agent_a2a_client):
                 "parameters": {"test_parameter": 1}
             }}},
         ],
-        "messageId": uuid4().hex,
+        "messageId": str(uuid4()),
     })
 
-    assert len(messages) == 4
+    assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio
@@ -138,10 +144,10 @@ async def test_optional_parameters(agent_a2a_client):
                 "parameters": {"test_parameter": 1}
             }}},
         ],
-        "messageId": uuid4().hex,
+        "messageId": str(uuid4()),
     })
 
-    assert len(messages) == 4
+    assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio
@@ -154,10 +160,10 @@ async def test_missing_optional_parameters(agent_a2a_client):
                 "id": "optional_parameters"
             }}},
         ],
-        "messageId": uuid4().hex,
+        "messageId": str(uuid4()),
     })
 
-    assert len(messages) == 4
+    assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio

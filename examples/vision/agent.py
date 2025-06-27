@@ -1,10 +1,11 @@
-from typing import override, Optional, AsyncGenerator
+from typing import override, Optional
 
 import openai
 from pydantic import BaseModel
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import AgentCard, Message, AgentEntrypoint, Artifact, ProcessMessage
+from ichatbio.agent_response import ResponseContext
+from ichatbio.types import AgentCard, AgentEntrypoint, Artifact
 
 
 class ExamineParameters(BaseModel):
@@ -29,41 +30,41 @@ class VisionAgent(IChatBioAgent):
         )
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[
-        None, Message]:
+    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
         client = openai.Client()
 
         match params:
             case ExamineParameters(image=image):
-                yield ProcessMessage(summary="Examining image", description="Finding image URL")
-                # Make sure the artifact is an image
-                if not image.mimetype.startswith("image/"):
-                    yield ProcessMessage(description="Artifact is not an image")
-                    return
+                async with context.begin_process(summary="Inspecting image") as process:
+                    await process.log("Finding image URL")
+                    # Make sure the artifact is an image
+                    if not image.mimetype.startswith("image/"):
+                        await process.log("Artifact is not an image")
+                        return
 
-                # Try to find a URL in the image description
-                urls = image.get_urls()
-                if len(urls) == 0:
-                    yield ProcessMessage(description="Image artifact has no URL")
-                    return
+                    # Try to find a URL in the image description
+                    urls = image.get_urls()
+                    if len(urls) == 0:
+                        await process.log("Image artifact has no URL")
+                        return
 
-                image_url = urls[0]
-                yield ProcessMessage(description=f"Examining image at URL {image_url}")
+                    image_url = urls[0]
+                    await process.log(f"Examining image at URL {image_url}")
 
-                # Ask GPT-4o-mini to answer the request
-                response = client.responses.create(
-                    model="gpt-4o-mini",
-                    input=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "input_text", "text": request},
-                                {"type": "input_image", "image_url": image_url}
-                            ]
-                        }
-                    ]
-                )
+                    # Ask GPT-4o-mini to answer the request
+                    response = client.responses.create(
+                        model="gpt-4o-mini",
+                        input=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "input_text", "text": request},
+                                    {"type": "input_image", "image_url": image_url}
+                                ]
+                            }
+                        ]
+                    )
 
-                response_text = response.output_text
-                if response_text:
-                    yield ProcessMessage(description="Analysis: " + response_text)
+                    response_text = response.output_text
+                    if response_text:
+                        await process.log("Analysis: " + response_text)

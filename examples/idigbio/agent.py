@@ -1,9 +1,10 @@
-from typing import override, Optional, AsyncGenerator, AsyncIterator
+from typing import override, Optional
 
 from pydantic import BaseModel
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.types import AgentCard, Message
+from ichatbio.agent_response import ResponseContext
+from ichatbio.types import AgentCard
 from .entrypoints import find_occurrence_records
 
 
@@ -21,15 +22,10 @@ class IDigBioAgent(IChatBioAgent):
         )
 
     @override
-    async def run(self, request: str, entrypoint: str, params: Optional[BaseModel]) -> AsyncGenerator[None, Message]:
+    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
         # Route requests to their selected entrypoints
-        coro: AsyncIterator[Message]
         match entrypoint:
             case find_occurrence_records.entrypoint.id:
-                coro = find_occurrence_records.run(request)
+                await find_occurrence_records.run(context, request)
             case _:
                 raise ValueError()
-
-        # Execute the entrypoint code (an asyncio coroutine)
-        async for message in coro:
-            yield message

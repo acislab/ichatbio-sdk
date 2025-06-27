@@ -1,5 +1,4 @@
 import importlib.resources
-from typing import AsyncIterator
 
 import instructor
 from instructor import AsyncInstructor
@@ -9,7 +8,8 @@ from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
 from examples.util.ai import StopOnTerminalErrorOrMaxAttempts, AIGenerationException
-from ichatbio.types import AgentEntrypoint, ProcessMessage, TextMessage, ArtifactMessage, Message
+from ichatbio.agent_response import ResponseContext
+from ichatbio.types import AgentEntrypoint
 from ..schema import IDigBioRecordsApiParameters
 from ..util import query_idigbio_api, make_idigbio_api_url, make_idigbio_portal_url
 
@@ -28,62 +28,62 @@ entrypoint = AgentEntrypoint(
 )
 
 
-async def run(request: str) -> AsyncIterator[Message]:
+async def run(context: ResponseContext, request: str):
     """
     Executes this specific entrypoint. See description above. This function yields a sequence of messages that are
     returned one-by-one to iChatBio in response to the request, logging the retrieval process in real time. Any records
     retrieved from the iDigBio API are packaged as an JSON artifact that iChatBio can interact with.
     """
-    yield ProcessMessage(summary="Searching iDigBio",
-                         description="Generating search parameters for species occurrences")
-    try:
-        params, artifact_description = await _generate_records_search_parameters(request)
-    except AIGenerationException as e:
-        yield ProcessMessage(description=e.message)
-        return
+    async with context.begin_process(summary="Searching iDigBio") as process:
+        await process.log("Generating search parameters for species occurrences")
+        try:
+            params, artifact_description = await _generate_records_search_parameters(request)
+        except AIGenerationException as e:
+            process.log(e.message)
+            return
 
-    yield ProcessMessage(description=f"Generated search parameters", data=params)
+        await process.log("Generated search parameters", data=params)
 
-    records_api_url = make_idigbio_api_url("/v2/search/records")
-    yield ProcessMessage(description=f"Sending a POST request to the iDigBio records API at {records_api_url}")
+        records_api_url = make_idigbio_api_url("/v2/search/records")
+        await process.log(f"Sending a POST request to the iDigBio records API at {records_api_url}")
 
-    response_code, success, response_data = query_idigbio_api("/v2/search/records", params)
-    matching_count = response_data.get("itemCount", 0)
-    record_count = len(response_data.get("items", []))
+        response_code, success, response_data = query_idigbio_api("/v2/search/records", params)
+        matching_count = response_data.get("itemCount", 0)
+        record_count = len(response_data.get("items", []))
 
-    if success:
-        yield ProcessMessage(description=f"Response code: {response_code}")
-    else:
-        yield ProcessMessage(description=f"Response code: {response_code} - something went wrong!")
-        return
+        if success:
+            await process.log(f"Response code: {response_code}")
+        else:
+            await process.log(f"Response code: {response_code} - something went wrong!")
+            return
 
-    api_query_url = make_idigbio_api_url("/v2/search/records", params)
-    yield TextMessage(
-        text=f"The API query returned {record_count} out of {matching_count} matching records in iDigBio using the"
-             f" URL {api_query_url}"
-    )
+        api_query_url = make_idigbio_api_url("/v2/search/records", params)
+        await context.reply(
+            f"The API query returned {record_count} out of {matching_count} matching records in iDigBio using the URL"
+            f" {api_query_url}"
+        )
 
-    portal_url = make_idigbio_portal_url(params)
-    yield ProcessMessage(
-        description=f"[View {record_count} out of {matching_count} matching records]({api_query_url})"
-                    f" | [Show in iDigBio portal]({portal_url})"
-    )
-    yield TextMessage(
-        text=f"The records can be viewed in the iDigBio portal at {portal_url}. The portal shows the records in an"
-             f" interactive list and plots them on a map. The raw records returned returned by the API can be found"
-             f" at {api_query_url}"
-    )
-    yield ArtifactMessage(
-        mimetype="application/json",
-        description=artifact_description,
-        uris=[api_query_url],
-        metadata={
-            "data_source": "iDigBio",
-            "portal_url": portal_url,
-            "retrieved_record_count": record_count,
-            "total_matching_count": matching_count
-        }
-    )
+        portal_url = make_idigbio_portal_url(params)
+        await process.log(
+            f"[View {record_count} out of {matching_count} matching records]({api_query_url})"
+            f" | [Show in iDigBio portal]({portal_url})"
+        )
+        await context.reply(
+            f"The records can be viewed in the iDigBio portal at {portal_url}. The portal shows the records in an"
+            f" interactive list and plots them on a map. The raw records returned returned by the API can be found at"
+            f" {api_query_url}"
+        )
+        await process.create_artifact(
+            mimetype="application/json",
+            description=artifact_description,
+            uris=[api_query_url],
+            metadata={
+                "data_source": "iDigBio",
+                "portal_url": portal_url,
+                "retrieved_record_count": record_count,
+                "total_matching_count": matching_count
+            }
+        )
 
 
 class LLMResponseModel(BaseModel):

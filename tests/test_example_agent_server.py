@@ -4,7 +4,7 @@ import a2a.client
 import httpx
 import pytest
 import pytest_asyncio
-from a2a.types import MessageSendParams, SendStreamingMessageRequest
+from a2a.types import MessageSendParams, SendStreamingMessageRequest, TaskState
 from httpx import ASGITransport
 
 from examples.cataas.agent import CataasAgent
@@ -38,12 +38,11 @@ async def test_server(agent_a2a_client):
                 {"kind": "text", "text": "I need a sphynx"},
                 {"kind": "data", "data": {"entrypoint": {"id": "get_cat_image"}}},
             ],
-            "messageId": uuid4().hex,
-        },
+            "messageId": str(uuid4()),
+        }
     }
 
-    request = SendStreamingMessageRequest(params=MessageSendParams(**send_message_payload))
+    request = SendStreamingMessageRequest(id=str(uuid4()), params=MessageSendParams(**send_message_payload))
 
     messages = [message async for message in agent_a2a_client.send_message_streaming(request)]
-
-    assert len(messages) == 9
+    assert messages[-1].root.result.status.state == TaskState.completed
