@@ -38,6 +38,7 @@ repository = "https://github.com/acislab/ichatbio-sdk"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "src", "tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 asyncio_mode = "strict"

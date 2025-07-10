@@ -4,7 +4,7 @@ This module provides pydantic schema used to craft and validate iDigBio API quer
 from datetime import date
 from typing import Optional, List, Union, Literal
 
-from pydantic import Field, BaseModel, EmailStr, field_validator
+from pydantic import Field, BaseModel, field_validator
 from pydantic_core import PydanticCustomError
 
 
@@ -309,46 +309,4 @@ class IDigBioRecordsApiParameters(BaseModel):
     rq: IDBRecordsQuerySchema = Field(...,
                                       description="Search criteria for species occurrence records in iDigBio")
     limit: Optional[int] = Field(100, ge=1, le=5000,
-                                 description="The maximum number of records to return")
-
-
-class IDigBioSummaryApiParameters(BaseModel):
-    """
-    This schema represents the output containing the LLM-generated iDigBio query.
-    """
-    top_fields: Optional[str] = Field(...,
-                                      description="The field to break down record counts by. Defaults to "
-                                                  "\"scientificname\". For example, if top_fields is \"country\", "
-                                                  "the iDigBio API will find the 10 countries with the most records "
-                                                  "matching the search parameters. Only one top field may be "
-                                                  "specified.")
-    count: Optional[int] = Field(10, gt=0, le=5000,
-                                 description="The maximum number of unique values to report record counts for. For "
-                                             "example, to find 10 number of species, set \"count\" to 10. Or to find "
-                                             "total number of unique species, use the maximum count allowed.")
-    rq: Optional[IDBRecordsQuerySchema] = Field(None,
-                                                description="This is the iDigBio Query format and should contain the "
-                                                            "query "
-                                                            "generated from the user's plain text input.")
-
-
-class IDigBioDownloadApiParameters(IDigBioRecordsApiParameters):
-    """
-    This schema represents the output containing the LLM-generated iDigBio query.
-    """
-    email: EmailStr = Field(...,
-                            description="The email address to send the results of the search to. The email will "
-                                        "contain a link to download the results packaged as a DarwinCore Archive zip "
-                                        "file.")
-
-
-class IDigBioMediaApiParameters(BaseModel):
-    """
-    This schema represents the output containing the LLM-generated iDigBio query.
-    """
-    mq: Optional[IDBMediaQuerySchema] = Field(None,
-                                              description="Search criteria for media and media records")
-    rq: Optional[IDBRecordsQuerySchema] = Field(None,
-                                                description="Search criteria for species occurrence records")
-    limit: Optional[int] = Field(None,
                                  description="The maximum number of records to return")
