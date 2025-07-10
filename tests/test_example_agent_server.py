@@ -7,13 +7,13 @@ import pytest_asyncio
 from a2a.types import MessageSendParams, SendStreamingMessageRequest, TaskState
 from httpx import ASGITransport
 
-from examples.cataas.agent import CataasAgent
+from examples.hello_world.agent import HelloWorldAgent
 from ichatbio.server import build_agent_app
 
 
 @pytest.fixture
 def agent():
-    yield CataasAgent()
+    yield HelloWorldAgent()
 
 
 @pytest_asyncio.fixture
@@ -35,8 +35,8 @@ async def test_server(agent_a2a_client):
         "message": {
             "role": "user",
             "parts": [
-                {"kind": "text", "text": "I need a sphynx"},
-                {"kind": "data", "data": {"entrypoint": {"id": "get_cat_image"}}},
+                {"kind": "text", "text": "hello"},
+                {"kind": "data", "data": {"entrypoint": {"id": "hello"}}},
             ],
             "messageId": str(uuid4()),
         }

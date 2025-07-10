@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 import examples.vision.agent
@@ -17,6 +19,11 @@ async def test_hello(context, messages):
         ProcessLogResponse("Hello world!"),
         DirectResponse("I said it!")
     ]
+
+
+# The example agents tested below use OpenAI APIs
+if not os.getenv("OPENAI_API_KEY"):
+    pytest.skip()
 
 
 @pytest.mark.asyncio
