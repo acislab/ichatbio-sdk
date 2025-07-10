@@ -19,7 +19,8 @@ dependencies = [
     "pydantic~=2.11.4",
     "typing_extensions~=4.13.2",
     "anyio~=4.9.0",
-    "uvicorn~=0.34.2"
+    "uvicorn~=0.34.2",
+    "attrs~=25.3.0"
 ]
 
 [project.optional-dependencies]
