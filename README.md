@@ -1,5 +1,7 @@
 # iChatBio SDK
 
+[![tests](https://github.com/acislab/ichatbio-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/acislab/ichatbio-sdk/actions/workflows/tests.yml)
+
 The iChatBio SDK is designed to aid in the development of agents that can communicate with iChatBio. The SDK adds a
 layer of abstraction over the [A2A protocol](https://github.com/google/a2a), hiding the complexities of A2A while
 exposing iChatBio-specific capabilities. Because agents designed with the iChatBio SDK make use of A2A, they are also
