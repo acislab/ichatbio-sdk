@@ -15,7 +15,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "a2a-sdk~=0.2.9",
+    "a2a-sdk==0.2.10",
     "pydantic~=2.11.4",
     "typing_extensions~=4.13.2",
     "anyio~=4.9.0",

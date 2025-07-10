@@ -208,6 +208,7 @@ async def test_server_agent_card(agent_httpx_client):
         'defaultOutputModes': ['text/plain'],
         'description': 'Test description.',
         'name': 'Test Name',
+        'protocolVersion': '0.2.5',
         'skills': [
             {
                 'description': '{"description": "Test description."}',
