@@ -8,7 +8,7 @@ from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
 from examples.util.ai import StopOnTerminalErrorOrMaxAttempts, AIGenerationException
-from ichatbio.agent_response import ResponseContext
+from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentEntrypoint
 from ..schema import IDigBioRecordsApiParameters
 from ..util import query_idigbio_api, make_idigbio_api_url, make_idigbio_portal_url
@@ -35,12 +35,13 @@ async def run(context: ResponseContext, request: str):
     retrieved from the iDigBio API are packaged as an JSON artifact that iChatBio can interact with.
     """
     async with context.begin_process(summary="Searching iDigBio") as process:
+        process: IChatBioAgentProcess
+
         await process.log("Generating search parameters for species occurrences")
         try:
             params, artifact_description = await _generate_records_search_parameters(request)
         except AIGenerationException as e:
-            process.log(e.message)
-            return
+            raise ValueError(e.message) from e
 
         await process.log("Generated search parameters", data=params)
 

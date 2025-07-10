@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from pydantic import Field
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.agent_response import ResponseContext
+from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentCard, AgentEntrypoint
 
 dotenv.load_dotenv()
@@ -48,6 +48,8 @@ class CataasAgent(IChatBioAgent):
     @override
     async def run(self, context: ResponseContext, request: str, entrypoint: str, params: GetCatImageParameters):
         async with context.begin_process(summary="Searching for cats") as process:
+            process: IChatBioAgentProcess
+
             await process.log("Generating search parameters")
 
             try:

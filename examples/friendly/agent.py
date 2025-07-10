@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from pydantic import PastDate
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.agent_response import ResponseContext
+from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentCard
 from ichatbio.types import AgentEntrypoint
 
@@ -40,6 +40,8 @@ class FriendlyAgent(IChatBioAgent):
             raise ValueError()  # This should never happen
 
         async with context.begin_process(summary="Replying") as process:
+            process: IChatBioAgentProcess
+
             await process.log("Generating a friendly reply")
             response = ...  # Query an LLM
 
@@ -47,9 +49,9 @@ class FriendlyAgent(IChatBioAgent):
 
             happy_birthday = params.birthday == date.today()
             if happy_birthday:
-                process.log("Generating a birthday surprise")
+                await process.log("Generating a birthday surprise")
                 audio: bytes = ...  # Generate an audio version of the response
-                process.create_artifact(
+                await process.create_artifact(
                     mimetype="audio/mpeg",
                     description=f"An audio version of the response",
                     content=audio

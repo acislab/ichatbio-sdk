@@ -29,4 +29,4 @@ class IDigBioAgent(IChatBioAgent):
             case find_occurrence_records.entrypoint.id:
                 await find_occurrence_records.run(context, request)
             case _:
-                raise ValueError()
+                raise NotImplemented(f"{entrypoint} is not yet supported")

@@ -191,6 +191,10 @@ class IChatBioAgentProcess:
 
 
 class ResponseContext:
+    """
+    Provides methods for responding to requests and initiating processes.
+    """
+
     def __init__(self, channel: ResponseChannel, root_context_id: str):
         self._channel = channel
         self._root_context_id = root_context_id

@@ -4,7 +4,7 @@ import openai
 from pydantic import BaseModel
 
 from ichatbio.agent import IChatBioAgent
-from ichatbio.agent_response import ResponseContext
+from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentCard, AgentEntrypoint, Artifact
 
 
@@ -36,6 +36,8 @@ class VisionAgent(IChatBioAgent):
         match params:
             case ExamineParameters(image=image):
                 async with context.begin_process(summary="Inspecting image") as process:
+                    process: IChatBioAgentProcess
+
                     await process.log("Finding image URL")
                     # Make sure the artifact is an image
                     if not image.mimetype.startswith("image/"):
