@@ -6,7 +6,6 @@ from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
 from a2a.types import Part
 from a2a.types import UnsupportedOperationError, TaskState, TextPart
-from a2a.utils import new_agent_text_message
 from a2a.utils.errors import ServerError
 from attr import dataclass
 from pydantic import ValidationError
@@ -14,31 +13,6 @@ from typing_extensions import override
 
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext, ResponseChannel
-
-
-async def _reject_on_null_message(updater: TaskUpdater, exception):
-    await updater.update_status(TaskState.rejected, new_agent_text_message(
-        "Failed to parse request parameters: " + str(exception)
-    ), final=True)
-
-
-async def _reject_on_parsing_error(updater: TaskUpdater, exception):
-    await updater.update_status(TaskState.rejected, new_agent_text_message(
-        "Failed to parse request parameters: " + str(exception)
-    ), final=True)
-
-
-async def _reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entrypoint_id):
-    await updater.update_status(TaskState.rejected, new_agent_text_message(
-        f"Unrecognized entrypoint \"{entrypoint_id}\". Available entrypoints:\n" +
-        "[" + ", ".join(e.id for e in agent.get_agent_card().entrypoints) + "]"
-    ), final=True)
-
-
-async def _reject_on_bad_arguments(updater: TaskUpdater, exception):
-    await updater.update_status(TaskState.rejected, new_agent_text_message(
-        "Request parameters do not match schema: " + str(exception)
-    ), final=True)
 
 
 @dataclass
@@ -67,16 +41,15 @@ class IChatBioAgentExecutor(AgentExecutor):
             context: RequestContext,
             event_queue: EventQueue,
     ) -> None:
+        updater = TaskUpdater(event_queue, context.task_id, context.context_id)
+
+        # Acknowledge the request
+        if not context.current_task:
+            await updater.submit()
+
+        # Process the request
         request = None
-
         try:
-            # Run the agent until either complete or the task is suspended.
-            updater = TaskUpdater(event_queue, context.task_id, context.context_id)
-
-            # Immediately notify that the task is submitted.
-            if not context.current_task:
-                await updater.submit()
-
             if context.message is None:
                 raise BadRequest("Request does not contain a message")
 
@@ -84,8 +57,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                 # TODO: for now, assume messages begin with a text part and a data part
                 request = _Request(context.message.parts[0].root.text, context.message.parts[1].root.data)
             except (IndexError, AttributeError) as e:
-                raise BadRequest("Request is not formatted as expected. Are you using the latest version of the"
-                                 " ichatbio-sdk package?") from e
+                raise BadRequest("Request is not formatted as expected") from e
 
             try:
                 raw_entrypoint_data = request.data["entrypoint"]
@@ -115,16 +87,19 @@ class IChatBioAgentExecutor(AgentExecutor):
             response_channel = ResponseChannel(context, updater)
             response_context = ResponseContext(response_channel, context.task_id)
 
+            # Pass the request to the agent
             try:
                 logging.info(f"Accepting request {request}")
                 await self.agent.run(response_context, request.text, entrypoint_id, entrypoint_params)
                 await updater.complete()
 
+            # If the agent failed to process the request, mark the task as "failed"
             except Exception as e:
                 logging.error(f"An exception was raised while handling request {request}", exc_info=e)
                 message = updater.new_agent_message([Part(root=TextPart(text=traceback.format_exc(limit=0)))])
                 await updater.update_status(TaskState.failed, message, final=True)
 
+        # If something is wrong with the request, mark the task as "rejected"
         except BadRequest as e:
             logging.warning(f"Rejecting incoming request: {request}", exc_info=e)
             message = updater.new_agent_message([Part(root=TextPart(
