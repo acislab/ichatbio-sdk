@@ -23,7 +23,7 @@ async def test_hello(context, messages):
 
 # The example agents tested below use OpenAI APIs
 if not os.getenv("OPENAI_API_KEY"):
-    pytest.skip()
+    pytest.skip(allow_module_level=True)
 
 
 @pytest.mark.asyncio
