@@ -1,14 +1,25 @@
+import logging
+import traceback
+
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
-from a2a.types import UnsupportedOperationError, TaskState
+from a2a.types import Part
+from a2a.types import UnsupportedOperationError, TaskState, TextPart
 from a2a.utils import new_agent_text_message
 from a2a.utils.errors import ServerError
+from attr import dataclass
 from pydantic import ValidationError
 from typing_extensions import override
 
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext, ResponseChannel
+
+
+async def _reject_on_null_message(updater: TaskUpdater, exception):
+    await updater.update_status(TaskState.rejected, new_agent_text_message(
+        "Failed to parse request parameters: " + str(exception)
+    ), final=True)
 
 
 async def _reject_on_parsing_error(updater: TaskUpdater, exception):
@@ -24,10 +35,20 @@ async def _reject_on_unrecognized_entrypoint(updater: TaskUpdater, agent, entryp
     ), final=True)
 
 
-async def _reject_on_bad_parameters(updater: TaskUpdater, exception):
+async def _reject_on_bad_arguments(updater: TaskUpdater, exception):
     await updater.update_status(TaskState.rejected, new_agent_text_message(
         "Request parameters do not match schema: " + str(exception)
     ), final=True)
+
+
+@dataclass
+class _Request:
+    text: str
+    data: dict
+
+
+class BadRequest(ValueError):
+    pass
 
 
 class IChatBioAgentExecutor(AgentExecutor):
@@ -46,45 +67,70 @@ class IChatBioAgentExecutor(AgentExecutor):
             context: RequestContext,
             event_queue: EventQueue,
     ) -> None:
-        # Run the agent until either complete or the task is suspended.
-        updater = TaskUpdater(event_queue, context.task_id, context.context_id)
+        request = None
 
-        # Immediately notify that the task is submitted.
-        if not context.current_task:
-            await updater.submit()
-
-        # TODO: for now, assume messages begin with a text part and a data part
         try:
-            request_text: str = context.message.parts[0].root.text
-            request_data: dict = context.message.parts[1].root.data
+            # Run the agent until either complete or the task is suspended.
+            updater = TaskUpdater(event_queue, context.task_id, context.context_id)
 
-            raw_entrypoint_data = request_data["entrypoint"]
-            entrypoint_id = raw_entrypoint_data["id"]
-            raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else {}
+            # Immediately notify that the task is submitted.
+            if not context.current_task:
+                await updater.submit()
 
-        except (AttributeError, IndexError, KeyError) as e:
-            return await _reject_on_parsing_error(updater, e)
+            if context.message is None:
+                raise BadRequest("Request does not contain a message")
 
-        entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
-
-        if not entrypoint:
-            return await _reject_on_unrecognized_entrypoint(updater, self.agent, entrypoint_id)
-
-        if entrypoint.parameters is not None:
             try:
-                entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
-            except ValidationError as e:
-                return await _reject_on_bad_parameters(updater, e)
-        else:
-            entrypoint_params = None
+                # TODO: for now, assume messages begin with a text part and a data part
+                request = _Request(context.message.parts[0].root.text, context.message.parts[1].root.data)
+            except (IndexError, AttributeError) as e:
+                raise BadRequest("Request is not formatted as expected. Are you using the latest version of the"
+                                 " ichatbio-sdk package?") from e
 
-        await updater.start_work()
+            try:
+                raw_entrypoint_data = request.data["entrypoint"]
+                entrypoint_id = raw_entrypoint_data["id"]
+                raw_entrypoint_params = raw_entrypoint_data["parameters"] if "parameters" in raw_entrypoint_data else {}
 
-        response_channel = ResponseChannel(context, updater)
-        response_context = ResponseContext(response_channel, context.task_id)
-        await self.agent.run(response_context, request_text, entrypoint_id, entrypoint_params)
+            except (AttributeError, IndexError, KeyError) as e:
+                raise BadRequest("Failed to parse request data") from e
 
-        await updater.complete()
+            entrypoint = next((e for e in self.agent.get_agent_card().entrypoints if e.id == entrypoint_id), None)
+
+            if not entrypoint:
+                raise BadRequest(f"Invalid entrypoint \"{entrypoint_id}\"")
+
+            if entrypoint.parameters is not None:
+                try:
+                    entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
+                except ValidationError as e:
+                    raise BadRequest(
+                        f"Invalid arguments for entrypoint \"{entrypoint_id}\": {raw_entrypoint_params}"
+                    ) from e
+            else:
+                entrypoint_params = None
+
+            await updater.start_work()
+
+            response_channel = ResponseChannel(context, updater)
+            response_context = ResponseContext(response_channel, context.task_id)
+
+            try:
+                logging.info(f"Accepting request {request}")
+                await self.agent.run(response_context, request.text, entrypoint_id, entrypoint_params)
+                await updater.complete()
+
+            except Exception as e:
+                logging.error(f"An exception was raised while handling request {request}", exc_info=e)
+                message = updater.new_agent_message([Part(root=TextPart(text=traceback.format_exc(limit=0)))])
+                await updater.update_status(TaskState.failed, message, final=True)
+
+        except BadRequest as e:
+            logging.warning(f"Rejecting incoming request: {request}", exc_info=e)
+            message = updater.new_agent_message([Part(root=TextPart(
+                text=f"Request rejected. Reason: {traceback.format_exc(limit=0)}"
+            ))])
+            await updater.update_status(TaskState.rejected, message, final=True)
 
     @override
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:

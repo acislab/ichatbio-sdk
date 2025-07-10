@@ -1,4 +1,5 @@
 import base64
+import logging
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from typing import Optional
 from uuid import uuid4
@@ -134,13 +135,27 @@ class IChatBioAgentProcess:
             raise ValueError("Process is over")
         await self._channel.submit(message, self._context_id)
 
-    async def begin(self):
+    async def _begin(self):
+        """
+        Do not call this function directly. It will be performed automatically when beginning the process in a "with"
+        statement.
+
+        >>> with context.begin_process(...) as process:
+        >>>     # process._begin() is called immediately
+        """
         if self._context_id:
             raise ValueError("Process has already started")
         self._context_id = str(uuid4())
         await self._submit_if_active(ProcessBeginResponse(self._summary, self._metadata))
 
-    async def end(self):
+    async def _end(self):
+        """
+        Do not call this function directly. It will be performed automatically when beginning the process in a "with"
+        statement.
+
+        >>> with context.begin_process(...) as process:
+        >>>     # process._end() is called at the end of this block
+        """
         if not self._context_id:
             raise ValueError("Process is not yet started")
         if not self._channel:
@@ -193,6 +208,7 @@ class ResponseContext:
         :param text: A natural language response to the assistant's request.
         :param data: Structured information related to the message.
         """
+        logging.info(f"Sending reply \"{text}\" with data {data}")
         await self._channel.submit(DirectResponse(text, data), self._root_context_id)
 
     @asynccontextmanager
@@ -214,8 +230,8 @@ class ResponseContext:
 
         """
         process = IChatBioAgentProcess(self._channel, summary, metadata)
-        await process.begin()
+        await process._begin()
         try:
             yield process
         finally:
-            await process.end()
+            await process._end()

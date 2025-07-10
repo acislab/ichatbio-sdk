@@ -1,4 +1,5 @@
 import asyncio
+import types
 from typing import Optional
 from uuid import uuid4
 
@@ -19,11 +20,10 @@ from ichatbio.types import AgentEntrypoint
 AGENT_URL = "http://test.agent"
 
 
-@pytest.fixture(autouse=True)
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture(autouse=True, scope="function")
+def fix_event_loop_reuse_errors():
+    from sse_starlette.sse import AppStatus
+    AppStatus.should_exit_event = asyncio.Event()
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ async def query_test_agent(agent_a2a_client, message_payload):
 
 
 @pytest.mark.asyncio
-async def test_server(event_loop, agent_a2a_client):
+async def test_server(agent_a2a_client):
     messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
@@ -101,9 +101,7 @@ async def test_server(event_loop, agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_strict_parameters(event_loop, agent_a2a_client):
-    asyncio.new_event_loop()
-
+async def test_strict_parameters(agent_a2a_client):
     messages = await query_test_agent(agent_a2a_client, {
         "role": "user",
         "parts": [
@@ -231,3 +229,23 @@ async def test_server_agent_card(agent_httpx_client):
         'url': AGENT_URL,
         'version': '1'
     }
+
+
+async def run_and_explode(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+    raise ValueError("Rut roh!")
+
+
+@pytest.mark.asyncio
+async def test_server(agent, agent_a2a_client):
+    agent.run = types.MethodType(run_and_explode, agent)
+
+    messages = await query_test_agent(agent_a2a_client, {
+        "role": "user",
+        "parts": [
+            {"kind": "text", "text": "Do something for me"},
+            {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
+        ],
+        "messageId": str(uuid4()),
+    })
+
+    assert messages[-1].root.result.status.state == TaskState.failed

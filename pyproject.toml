@@ -41,6 +41,8 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 asyncio_mode = "strict"
+log_cli = true
+log_cli_level = "INFO"
 
 [build-system]
 requires = ["hatchling==1.26.3"]
