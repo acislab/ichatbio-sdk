@@ -19,7 +19,7 @@ class VisionAgent(IChatBioAgent):
             name="Example Vision Agent",
             description="Answers questions about images.",
             icon=None,
-            url="http://localhost:9999",
+            url=None,
             entrypoints=[
                 AgentEntrypoint(
                     id="examine",

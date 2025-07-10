@@ -11,14 +11,14 @@ class HelloWorldAgent(IChatBioAgent):
     """
     A simple example agent with a single entrypoint.
     """
-    
+
     @override
     def get_agent_card(self) -> AgentCard:
         return AgentCard(
             name="The Simplest Agent",
             description="Can only say \"Hello world!\".",
             icon="https://commons.wikimedia.org/wiki/Category:Hello_World#/media/File:Qt_example.png",
-            url="http://localhost:9999",
+            url=None,
             entrypoints=[
                 AgentEntrypoint(
                     id="hello",

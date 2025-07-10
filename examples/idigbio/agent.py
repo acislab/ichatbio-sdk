@@ -15,6 +15,7 @@ class IDigBioAgent(IChatBioAgent):
             name="iDigBio Search",
             description="Searches for information in the iDigBio portal (https://idigbio.org).",
             icon=None,
+            url=None,
             entrypoints=[
                 # Because this agent is planned to have many entrypoints, we define them in their own files
                 find_occurrence_records.entrypoint

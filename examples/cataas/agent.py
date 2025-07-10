@@ -31,7 +31,7 @@ class CataasAgent(IChatBioAgent):
             name="Cat As A Service",
             description="Retrieves random cat images from cataas.com.",
             icon=None,
-            url="http://localhost:9999",
+            url=None,
             entrypoints=[
                 AgentEntrypoint(
                     id="get_cat_image",

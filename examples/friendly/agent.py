@@ -18,7 +18,7 @@ card = AgentCard(
     name="Friendly Agent",
     description="Responds in a friendly manner.",
     icon="https://example.com/icon.png",
-    url="http://localhost:9999",
+    url=None,
     entrypoints=[
         AgentEntrypoint(
             id="chat",
