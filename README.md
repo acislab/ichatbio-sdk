@@ -119,7 +119,7 @@ If all went well, you should be able to find your agent card at http://localhost
 
 # SDK Development
 
-Requires Python 3.10 or higher.
+Requires Python 3.12 or higher.
 
 Dependencies for the example agents are installed separately:
 
