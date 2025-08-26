@@ -13,7 +13,7 @@ types, and shared persistent storage) enabled by the iChatBio ecosystem.
 See [examples](examples) for a reference agent implementation. A standalone example agent is
 available [here](https://github.com/mielliott/ichatbio-agent-example).
 
-The iChatBio SDK is available on PyPI:
+The iChatBio SDK is available on [PyPI](https://pypi.org/project/ichatbio-sdk):
 
 ```sh
 pip install ichatbio-sdk
