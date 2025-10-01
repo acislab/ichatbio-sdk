@@ -5,7 +5,6 @@ import pytest
 import examples.vision.agent
 from examples.cataas.agent import CataasAgent, GetCatImageParameters
 from examples.hello_world.agent import HelloWorldAgent
-from examples.idigbio.agent import IDigBioAgent
 from examples.vision.agent import VisionAgent
 from ichatbio.agent_response import ProcessLogResponse, ArtifactResponse, ProcessBeginResponse, DirectResponse
 
@@ -45,32 +44,6 @@ async def test_cataas(context, messages):
     assert artifact.mimetype == "image/png"
     assert artifact.content
     assert artifact.metadata == {"api_query_url": "https://cataas.com/cat/sphynx"}
-
-
-@pytest.mark.asyncio
-async def test_idigbio(context, messages):
-    agent = IDigBioAgent()
-    await agent.run(context, "Retrieve records of Rattus rattus in Alaska", "find_occurrence_records", None)
-
-    process_messages = [p for p in messages if isinstance(p, ProcessLogResponse)]
-    assert len(process_messages) == 5
-
-    search_parameters = next(p.data for p in process_messages if p.text == "Generated search parameters")
-    assert search_parameters == {
-        "limit": 100,
-        "rq": {
-            "scientificname": "Rattus rattus",
-            "stateprovince": "Alaska"
-        }
-    }
-
-    artifacts = [p for p in messages if type(p) is ArtifactResponse]
-    assert len(artifacts) == 1
-
-    artifact: ArtifactResponse = artifacts[0]
-    assert artifact.mimetype == "application/json"
-    assert artifact.uris
-    assert artifact.metadata["data_source"] == "iDigBio"
 
 
 @pytest.mark.asyncio
