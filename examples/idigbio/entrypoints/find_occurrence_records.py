@@ -7,9 +7,9 @@ from openai import AsyncOpenAI
 from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
-from examples.util.ai import StopOnTerminalErrorOrMaxAttempts, AIGenerationException
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentEntrypoint
+from ..ai import StopOnTerminalErrorOrMaxAttempts, AIGenerationException
 from ..schema import IDigBioRecordsApiParameters
 from ..util import query_idigbio_api, make_idigbio_api_url, make_idigbio_portal_url
 
