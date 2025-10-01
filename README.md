@@ -119,6 +119,18 @@ if __name__ == "__main__":
 
 If all went well, you should be able to find your agent card at http://localhost:9999/.well-known/agent.json.
 
+# Agent implementations
+
+The source code for several existing agents is available online, and may be helpful to reference when designing new
+agents:
+
+* [ichatbio-agent-example](https://github.com/mielliott/ichatbio-agent-example): a template repository for creating new
+  agents
+* [ichatbio-idigbio-agent](https://github.com/acislab/ichatbio-idigbio-agent): interacts with https://idigbio.org data
+  through their APIs
+* [ichatbio-data-handler-agent](https://github.com/acislab/ichatbio-data-handler-agent): filters and transforms
+  structured data (e.g., JSON)
+
 # SDK Development
 
 Requires Python 3.12 or higher.
