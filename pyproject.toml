@@ -15,8 +15,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "a2a-sdk==0.2.10",
-    "pydantic~=2.11.4",
+    "a2a-sdk==0.3.7",
+    "pydantic~=2.12.0a1",
     "typing_extensions~=4.13.2",
     "anyio~=4.9.0",
     "uvicorn~=0.34.2",
@@ -25,8 +25,8 @@ dependencies = [
 
 [project.optional-dependencies]
 example = [
-    "openai~=1.79.0",
-    "instructor~=1.8.2",
+    "openai~=2.0.1",
+    "instructor~=1.11.3",
     "dotenv~=0.9.9",
     "python-dotenv~=1.1.0",
     "pytest~=8.3.5",

@@ -56,7 +56,7 @@ class CataasAgent(IChatBioAgent):
                 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 instructor_client = instructor.patch(openai_client)
                 cat: CatModel = await instructor_client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-5-nano",
                     response_model=CatModel,
                     messages=[
                         {"role": "system",

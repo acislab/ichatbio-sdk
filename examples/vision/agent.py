@@ -55,7 +55,7 @@ class VisionAgent(IChatBioAgent):
 
                     # Ask GPT-4o-mini to answer the request
                     response = client.responses.create(
-                        model="gpt-4o-mini",
+                        model="gpt-5-nano",
                         input=[
                             {
                                 "role": "user",
