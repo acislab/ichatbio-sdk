@@ -5,7 +5,7 @@ from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
 from a2a.types import Part
-from a2a.types import UnsupportedOperationError, TaskState, TextPart
+from a2a.types import UnsupportedOperationError, TextPart
 from a2a.utils.errors import ServerError
 from attr import dataclass
 from pydantic import ValidationError
@@ -97,7 +97,7 @@ class IChatBioAgentExecutor(AgentExecutor):
             except Exception as e:
                 logging.error(f"An exception was raised while handling request {request}", exc_info=e)
                 message = updater.new_agent_message([Part(root=TextPart(text=traceback.format_exc(limit=0)))])
-                await updater.update_status(TaskState.failed, message, final=True)
+                await updater.failed(message)
 
         # If something is wrong with the request, mark the task as "rejected"
         except BadRequest as e:
@@ -105,7 +105,7 @@ class IChatBioAgentExecutor(AgentExecutor):
             message = updater.new_agent_message([Part(root=TextPart(
                 text=f"Request rejected. Reason: {traceback.format_exc(limit=0)}"
             ))])
-            await updater.update_status(TaskState.rejected, message, final=True)
+            await updater.reject(message)
 
     @override
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
