@@ -23,6 +23,7 @@ class InMemoryResponseChannel(ResponseChannel):
     """
 
     def __init__(self, message_buffer: list):
+        super().__init__("testid")
         self.message_buffer = message_buffer
 
     async def submit(self, message: ResponseMessage, context_id: str):
@@ -39,4 +40,4 @@ TEST_CONTEXT_ID = "617727d1-4ce8-4902-884c-db786854b51c"
 
 @pytest.fixture(scope="function")
 def context(messages) -> ResponseContext:
-    return ResponseContext(InMemoryResponseChannel(messages), TEST_CONTEXT_ID)
+    return ResponseContext(InMemoryResponseChannel(messages))

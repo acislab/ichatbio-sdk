@@ -1,168 +1,142 @@
-import base64
+import asyncio
+from typing import Coroutine
 
 import pytest
-import pytest_asyncio
-from a2a.server.agent_execution import SimpleRequestContextBuilder
-from a2a.server.events import EventQueue
-from a2a.server.tasks import TaskUpdater
-from a2a.types import DataPart, Part, TextPart, TaskStatusUpdateEvent, FilePart, FileWithUri, FileWithBytes
 
 from ichatbio.agent_response import ResponseChannel, DirectResponse, ProcessBeginResponse, ProcessLogResponse, \
-    ArtifactResponse
+    ArtifactResponse, ResponseContext, IChatBioAgentProcess, ResponseMessage
 
 CONTEXT_ID = "1234"
 TASK_ID = "abcd"
 
-
-@pytest_asyncio.fixture
-async def event_queue():
-    yield EventQueue()
+@pytest.fixture
+def channel():
+    return ResponseChannel(TASK_ID)
 
 
 @pytest.fixture
-def message_queue(event_queue):
-    yield event_queue.queue
+def context(channel):
+    return ResponseContext(channel)
 
 
-@pytest_asyncio.fixture
-async def channel(event_queue):
-    request_context = await SimpleRequestContextBuilder().build(context_id=CONTEXT_ID, task_id=TASK_ID)
-    task_updater = TaskUpdater(event_queue, request_context.task_id, request_context.context_id)
-    yield ResponseChannel(request_context, task_updater)
+@pytest.fixture
+def run(channel):
+    async def do_work(work: Coroutine) -> list[ResponseMessage]:
+        done = object()
+        async def work_and_finish():
+            await work
+            await channel.message_box.put(done)
+            
+        task = asyncio.create_task(work_and_finish())
+
+        messages = []
+        while True:
+            message = await channel.message_box.get()
+            channel.message_box.task_done()
+
+            if message is done:
+                break
+
+            messages.append(message)
+
+        await task
+        assert channel.message_box.empty()
+
+        return messages
+
+    return do_work
 
 
 @pytest.mark.asyncio
-async def test_submit_direct_response(channel, message_queue):
-    await channel.submit(DirectResponse("hello"), context_id=CONTEXT_ID)
-    assert message_queue.qsize() == 1
-
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "direct_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(root=TextPart(text="hello", metadata=metadata))
+async def test_submit_direct_response(run, context):
+    messages = await run(context.reply("hi"))
+    assert messages == [
+        DirectResponse(text="hi")
     ]
 
 
 @pytest.mark.asyncio
-async def test_submit_direct_response_with_data(channel, message_queue):
-    await channel.submit(DirectResponse("hello", data={"field": "value"}), context_id=CONTEXT_ID)
-    assert message_queue.qsize() == 1
-
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "direct_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(root=TextPart(text="hello", metadata=metadata)),
-        Part(root=DataPart(data={"field": "value"}, metadata=metadata))
+async def test_submit_direct_response_with_data(run, context):
+    messages = await run(context.reply("hi", data={1: 2}))
+    assert messages == [
+        DirectResponse(text="hi", data={1: 2})
     ]
 
 
 @pytest.mark.asyncio
-async def test_submit_begin_process(channel, message_queue):
-    await channel.submit(ProcessBeginResponse("thinking"), context_id=CONTEXT_ID)
-    assert message_queue.qsize() == 1
+async def test_submit_begin_process(run, context):
+    async def work():
+        async with context.begin_process("test") as _:
+            pass
+        pass
 
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "begin_process_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(root=TextPart(text="thinking", metadata=metadata))
+    messages = await run(work())
+    assert messages == [
+        ProcessBeginResponse(summary="test")
     ]
 
 
 @pytest.mark.asyncio
-async def test_submit_begin_process_with_data(channel, message_queue):
-    await channel.submit(ProcessBeginResponse("thinking", data={"field": "value"}), context_id=CONTEXT_ID)
-    assert message_queue.qsize() == 1
+async def test_submit_begin_process_with_data(run, context):
+    async def work():
+        async with context.begin_process("test", {1: 2}) as _:
+            pass
 
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "begin_process_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(root=TextPart(text="thinking", metadata=metadata)),
-        Part(root=DataPart(data={"field": "value"}, metadata=metadata))
+    messages = await run(work())
+    assert messages == [
+        ProcessBeginResponse(summary="test", data={1: 2})
     ]
 
 
 @pytest.mark.asyncio
-async def test_submit_process_log(channel, message_queue):
-    await channel.submit(ProcessLogResponse("doing stuff"), context_id=CONTEXT_ID)
-    assert message_queue.qsize() == 1
+async def test_submit_process_log(run, context):
+    async def work():
+        async with context.begin_process("test") as process:
+            process: IChatBioAgentProcess
+            await process.log("working")
 
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "process_log_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(root=TextPart(text="doing stuff", metadata=metadata))
+    messages = await run(work())
+    assert messages == [
+        ProcessBeginResponse(summary="test"),
+        ProcessLogResponse(text="working")
+    ]
+
+
+
+@pytest.mark.asyncio
+async def test_submit_process_log_with_data(run, context):
+    async def work():
+        async with context.begin_process("test") as process:
+            process: IChatBioAgentProcess
+            await process.log("working", {1: 2})
+
+    messages = await run(work())
+    assert messages == [
+        ProcessBeginResponse(summary="test"),
+        ProcessLogResponse(text="working", data={1: 2})
     ]
 
 
 @pytest.mark.asyncio
-async def test_submit_process_log_with_data(channel, message_queue):
-    await channel.submit(ProcessLogResponse("doing stuff", data={"field": "value"}), context_id=CONTEXT_ID)
-    assert message_queue.qsize() == 1
+async def test_submit_artifact(run, context):
+    async def work():
+        async with context.begin_process("test") as process:
+            process: IChatBioAgentProcess
+            await process.create_artifact(
+                mimetype="text/plain",
+                description="test artifact",
+                uris=["https://test.artifact"],
+                metadata={"source": "nowhere"}
+            )
 
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "process_log_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(root=TextPart(text="doing stuff", metadata=metadata)),
-        Part(root=DataPart(data={"field": "value"}, metadata=metadata))
-    ]
-
-
-@pytest.mark.asyncio
-async def test_submit_artifact_with_online_content(channel, message_queue):
-    await channel.submit(
+    messages = await run(work())
+    assert messages == [
+        ProcessBeginResponse(summary="test"),
         ArtifactResponse(
             mimetype="text/plain",
             description="test artifact",
             uris=["https://test.artifact"],
             metadata={"source": "nowhere"}
-        ),
-        context_id=CONTEXT_ID
-    )
-    assert message_queue.qsize() == 1
-
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "artifact_response", "ichatbio_context_id": CONTEXT_ID}
-    assert message.status.message.parts == [
-        Part(
-            root=FilePart(
-                file=FileWithUri(mimeType="text/plain", name="test artifact", uri="https://test.artifact"),
-                metadata=metadata
-            )
-        ),
-        Part(
-            root=DataPart(
-                data={"uris": ["https://test.artifact"], "metadata": {"source": "nowhere"}},
-                metadata=metadata
-            )
         )
     ]
 
-
-@pytest.mark.asyncio
-async def test_submit_artifact_with_offline_content(channel, message_queue):
-    await channel.submit(
-        ArtifactResponse(
-            mimetype="text/plain",
-            description="test artifact",
-            content=b"hello",
-            metadata={"source": "nowhere"}
-        ),
-        context_id=CONTEXT_ID
-    )
-    assert message_queue.qsize() == 1
-
-    message: TaskStatusUpdateEvent = await message_queue.get()
-    metadata = {"ichatbio_type": "artifact_response", "ichatbio_context_id": CONTEXT_ID}
-    hello = base64.b64encode(b"hello")
-    assert message.status.message.parts == [
-        Part(
-            root=FilePart(
-                file=FileWithBytes(mimeType="text/plain", name="test artifact", bytes=hello),
-                metadata=metadata)
-        ),
-        Part(
-            root=DataPart(
-                data={"uris": [], "metadata": {"source": "nowhere"}},
-                metadata=metadata
-            )
-        )
-    ]

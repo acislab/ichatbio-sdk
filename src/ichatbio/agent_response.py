@@ -1,13 +1,9 @@
-import base64
+import asyncio
 import logging
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
-from typing import Optional
+from typing import Optional, Literal
 from uuid import uuid4
 
-from a2a.server.agent_execution import RequestContext
-from a2a.server.tasks import TaskUpdater
-from a2a.types import TextPart, FilePart, DataPart, TaskState, Part, FileWithBytes, FileWithUri
-from a2a.utils import new_agent_parts_message
 from attr import dataclass
 
 
@@ -15,18 +11,21 @@ from attr import dataclass
 class DirectResponse:
     text: str
     data: Optional[dict] = None
+    kind: Literal["direct_response"] = "direct_response"
 
 
 @dataclass
 class ProcessBeginResponse:
     summary: str
     data: Optional[dict] = None
+    kind: Literal["begin_process_response"] = "begin_process_response"
 
 
 @dataclass
 class ProcessLogResponse:
     text: str
     data: Optional[dict] = None
+    kind: Literal["process_log_response"] = "process_log_response"
 
 
 @dataclass
@@ -36,89 +35,20 @@ class ArtifactResponse:
     uris: Optional[list[str]] = None
     content: Optional[bytes] = None
     metadata: Optional[dict] = None
+    kind: Literal["artifact_response"] = "artifact_response"
 
 
 ResponseMessage = DirectResponse | ProcessBeginResponse | ProcessLogResponse | ArtifactResponse
 
 
 class ResponseChannel:
-    def __init__(self, context: RequestContext, updater: TaskUpdater):
-        self._context = context
-        self._updater = updater
+    def __init__(self, task_id: str):
+        self.message_box: asyncio.Queue[ResponseMessage] = asyncio.Queue(maxsize=1)
+        self.task_id = task_id
 
     async def submit(self, message: ResponseMessage, context_id: str):
-        match message:
-            case DirectResponse(text=text, data=data):
-                metadata = {
-                    "ichatbio_type": "direct_response",
-                    "ichatbio_context_id": context_id
-                }
-
-                parts = [TextPart(text=text, metadata=metadata)]
-                if data is not None:
-                    parts.append(DataPart(data=data, metadata=metadata))
-
-            case ProcessBeginResponse(summary=summary, data=data):
-                metadata = {
-                    "ichatbio_type": "begin_process_response",
-                    "ichatbio_context_id": context_id
-                }
-
-                parts = [TextPart(text=summary, metadata=metadata)]
-                if data is not None:
-                    parts.append(DataPart(data=data, metadata=metadata))
-
-            case ProcessLogResponse(text=text, data=data):
-                metadata = {
-                    "ichatbio_type": "process_log_response",
-                    "ichatbio_context_id": context_id
-                }
-
-                parts = [TextPart(text=text, metadata=metadata)]
-                if data is not None:
-                    parts.append(DataPart(data=data, metadata=metadata))
-
-            case ArtifactResponse(mimetype=mimetype, description=description, uris=uris, content=content,
-                                  metadata=artifact_metadata):
-                metadata = {
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": context_id
-                }
-                data = {
-                    "metadata": artifact_metadata,
-                    "uris": uris if uris else []
-                }
-
-                if content is not None:
-                    file = FileWithBytes(
-                        bytes=base64.b64encode(content),
-                        mimeType=mimetype,
-                        name=description
-                    )
-                elif uris:
-                    file = FileWithUri(
-                        uri=uris[0],
-                        mimeType=mimetype,
-                        name=description
-                    )
-                else:
-                    raise ValueError("Artifact message must have content or at least one URI")
-
-                parts = [
-                    FilePart(file=file, metadata=metadata),
-                    DataPart(data=data, metadata=metadata)
-                ]
-
-            case _:
-                raise ValueError("Bad message type")
-
-        await self._updater.update_status(
-            TaskState.working,
-            new_agent_parts_message(
-                [Part(root=p) for p in parts],
-                self._context.context_id,
-                self._context.task_id)
-        )
+        await self.message_box.put(message)
+        await self.message_box.join()
 
 
 class IChatBioAgentProcess:
@@ -195,9 +125,9 @@ class ResponseContext:
     Provides methods for responding to requests and initiating processes.
     """
 
-    def __init__(self, channel: ResponseChannel, root_context_id: str):
+    def __init__(self, channel: ResponseChannel):
         self._channel = channel
-        self._root_context_id = root_context_id
+        self._root_context_id = channel.task_id
 
     async def reply(self, text: Optional[str], data: Optional[dict] = None):
         """
