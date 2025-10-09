@@ -24,13 +24,19 @@ class VisionAgent(IChatBioAgent):
                 AgentEntrypoint(
                     id="examine",
                     description="Answers questions about a given image.",
-                    parameters=ExamineParameters
+                    parameters=ExamineParameters,
                 )
-            ]
+            ],
         )
 
     @override
-    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+    async def run(
+        self,
+        context: ResponseContext,
+        request: str,
+        entrypoint: str,
+        params: Optional[BaseModel],
+    ):
         client = openai.Client()
 
         match params:
@@ -61,10 +67,10 @@ class VisionAgent(IChatBioAgent):
                                 "role": "user",
                                 "content": [
                                     {"type": "input_text", "text": request},
-                                    {"type": "input_image", "image_url": image_url}
-                                ]
+                                    {"type": "input_image", "image_url": image_url},
+                                ],
                             }
-                        ]
+                        ],
                     )
 
                     response_text = response.output_text

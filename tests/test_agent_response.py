@@ -3,11 +3,20 @@ from typing import Coroutine
 
 import pytest
 
-from ichatbio.agent_response import ResponseChannel, DirectResponse, ProcessBeginResponse, ProcessLogResponse, \
-    ArtifactResponse, ResponseContext, IChatBioAgentProcess, ResponseMessage
+from ichatbio.agent_response import (
+    ResponseChannel,
+    DirectResponse,
+    ProcessBeginResponse,
+    ProcessLogResponse,
+    ArtifactResponse,
+    ResponseContext,
+    IChatBioAgentProcess,
+    ResponseMessage,
+)
 
 CONTEXT_ID = "1234"
 TASK_ID = "abcd"
+
 
 @pytest.fixture
 def channel():
@@ -23,10 +32,11 @@ def context(channel):
 def run(channel):
     async def do_work(work: Coroutine) -> list[ResponseMessage]:
         done = object()
+
         async def work_and_finish():
             await work
             await channel.message_box.put(done)
-            
+
         task = asyncio.create_task(work_and_finish())
 
         messages = []
@@ -50,17 +60,13 @@ def run(channel):
 @pytest.mark.asyncio
 async def test_submit_direct_response(run, context):
     messages = await run(context.reply("hi"))
-    assert messages == [
-        DirectResponse(text="hi")
-    ]
+    assert messages == [DirectResponse(text="hi")]
 
 
 @pytest.mark.asyncio
 async def test_submit_direct_response_with_data(run, context):
     messages = await run(context.reply("hi", data={1: 2}))
-    assert messages == [
-        DirectResponse(text="hi", data={1: 2})
-    ]
+    assert messages == [DirectResponse(text="hi", data={1: 2})]
 
 
 @pytest.mark.asyncio
@@ -71,9 +77,7 @@ async def test_submit_begin_process(run, context):
         pass
 
     messages = await run(work())
-    assert messages == [
-        ProcessBeginResponse(summary="test")
-    ]
+    assert messages == [ProcessBeginResponse(summary="test")]
 
 
 @pytest.mark.asyncio
@@ -83,9 +87,7 @@ async def test_submit_begin_process_with_data(run, context):
             pass
 
     messages = await run(work())
-    assert messages == [
-        ProcessBeginResponse(summary="test", data={1: 2})
-    ]
+    assert messages == [ProcessBeginResponse(summary="test", data={1: 2})]
 
 
 @pytest.mark.asyncio
@@ -98,9 +100,8 @@ async def test_submit_process_log(run, context):
     messages = await run(work())
     assert messages == [
         ProcessBeginResponse(summary="test"),
-        ProcessLogResponse(text="working")
+        ProcessLogResponse(text="working"),
     ]
-
 
 
 @pytest.mark.asyncio
@@ -113,7 +114,7 @@ async def test_submit_process_log_with_data(run, context):
     messages = await run(work())
     assert messages == [
         ProcessBeginResponse(summary="test"),
-        ProcessLogResponse(text="working", data={1: 2})
+        ProcessLogResponse(text="working", data={1: 2}),
     ]
 
 
@@ -126,7 +127,7 @@ async def test_submit_artifact(run, context):
                 mimetype="text/plain",
                 description="test artifact",
                 uris=["https://test.artifact"],
-                metadata={"source": "nowhere"}
+                metadata={"source": "nowhere"},
             )
 
     messages = await run(work())
@@ -136,7 +137,6 @@ async def test_submit_artifact(run, context):
             mimetype="text/plain",
             description="test artifact",
             uris=["https://test.artifact"],
-            metadata={"source": "nowhere"}
-        )
+            metadata={"source": "nowhere"},
+        ),
     ]
-

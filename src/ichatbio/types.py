@@ -13,6 +13,7 @@ class AgentEntrypoint(BaseModel):
     this data model. Validation of the model is performed by the agent. Messages that violate this model
     will be returned to iChatBio.
     """
+
     id: IDString
     """The identifier for this entrypoint. Can only contain letters, numbers, and underscores. Try to make the ID informative and concise. For example, "search_idigbio"."""
 
@@ -27,6 +28,7 @@ class AgentCard(BaseModel):
     """
     Provides iChatBio with information about an agent and rules for interacting with it.
     """
+
     name: str
     """The name used to identify the agent to iChatBio users."""
 
@@ -69,12 +71,8 @@ class _ArtifactDescription(BaseModel):
 Artifact = Annotated[
     _ArtifactDescription,
     WithJsonSchema(
-        {
-            "type": "string",
-            "pattern": "^#[0-9a-f]{4}$",
-            "examples": ["#0a9f"]
-        }
-    )
+        {"type": "string", "pattern": "^#[0-9a-f]{4}$", "examples": ["#0a9f"]}
+    ),
 ]
 """
 An entrypoint parameter to instruct iChatBio to provide an artifact description, which contains metadata about the

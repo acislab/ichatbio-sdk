@@ -6,7 +6,13 @@ import a2a.client
 import httpx
 import pytest
 import pytest_asyncio
-from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard, TaskState, SendStreamingMessageResponse
+from a2a.types import (
+    MessageSendParams,
+    SendStreamingMessageRequest,
+    AgentCard,
+    TaskState,
+    SendStreamingMessageResponse,
+)
 from httpx import ASGITransport
 from pydantic import BaseModel
 
@@ -34,16 +40,32 @@ def agent():
                 description="Test description.",
                 icon=None,
                 entrypoints=[
-                    AgentEntrypoint(id="no_parameters", description="Test description.", parameters=None),
-                    AgentEntrypoint(id="optional_parameters", description="Test description.",
-                                    parameters=OptionalParameters),
-                    AgentEntrypoint(id="strict_parameters", description="Test description.",
-                                    parameters=StrictParameters),
+                    AgentEntrypoint(
+                        id="no_parameters",
+                        description="Test description.",
+                        parameters=None,
+                    ),
+                    AgentEntrypoint(
+                        id="optional_parameters",
+                        description="Test description.",
+                        parameters=OptionalParameters,
+                    ),
+                    AgentEntrypoint(
+                        id="strict_parameters",
+                        description="Test description.",
+                        parameters=StrictParameters,
+                    ),
                 ],
-                url=AGENT_URL
+                url=AGENT_URL,
             )
 
-        async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+        async def run(
+            self,
+            context: ResponseContext,
+            request: str,
+            entrypoint: str,
+            params: Optional[BaseModel],
+        ):
             await context.reply("first message")
 
     return TestAgent()
@@ -76,14 +98,16 @@ def query_test_agent(agent_httpx_client):
 
 @pytest.mark.asyncio
 async def test_server(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
-        ],
-        "messageId": str(uuid4()),
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
+            ],
+            "messageId": str(uuid4()),
+        }
+    )
 
     assert messages[0].root.result.status.state == TaskState.submitted
 
@@ -96,97 +120,120 @@ async def test_server(query_test_agent):
 
 @pytest.mark.asyncio
 async def test_strict_parameters(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {
-                "id": "strict_parameters",
-                "parameters": {"test_parameter": 1}
-            }}},
-        ],
-        "messageId": str(uuid4()),
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {
+                    "kind": "data",
+                    "data": {
+                        "entrypoint": {
+                            "id": "strict_parameters",
+                            "parameters": {"test_parameter": 1},
+                        }
+                    },
+                },
+            ],
+            "messageId": str(uuid4()),
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio
 async def test_missing_strict_parameters(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {"id": "strict_parameters"}}},
-        ],
-        "messageId": uuid4().hex,
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {"kind": "data", "data": {"entrypoint": {"id": "strict_parameters"}}},
+            ],
+            "messageId": uuid4().hex,
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.rejected
 
 
 @pytest.mark.asyncio
 async def test_optional_parameters(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {
-                "id": "optional_parameters",
-                "parameters": {"test_parameter": 1}
-            }}},
-        ],
-        "messageId": str(uuid4()),
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {
+                    "kind": "data",
+                    "data": {
+                        "entrypoint": {
+                            "id": "optional_parameters",
+                            "parameters": {"test_parameter": 1},
+                        }
+                    },
+                },
+            ],
+            "messageId": str(uuid4()),
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio
 async def test_missing_optional_parameters(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {
-                "id": "optional_parameters"
-            }}},
-        ],
-        "messageId": str(uuid4()),
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {"kind": "data", "data": {"entrypoint": {"id": "optional_parameters"}}},
+            ],
+            "messageId": str(uuid4()),
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.completed
 
 
 @pytest.mark.asyncio
 async def test_bad_parameters(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {
-                "id": "strict_parameters",
-                "parameters": {"test_parameter": "this is not an integer!"}
-            }}},
-        ],
-        "messageId": uuid4().hex,
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {
+                    "kind": "data",
+                    "data": {
+                        "entrypoint": {
+                            "id": "strict_parameters",
+                            "parameters": {"test_parameter": "this is not an integer!"},
+                        }
+                    },
+                },
+            ],
+            "messageId": uuid4().hex,
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.rejected
 
 
 @pytest.mark.asyncio
 async def test_bad_entrypoint(query_test_agent):
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {
-                "id": "this_is_not_real"
-            }}},
-        ],
-        "messageId": uuid4().hex,
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {"kind": "data", "data": {"entrypoint": {"id": "this_is_not_real"}}},
+            ],
+            "messageId": uuid4().hex,
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.rejected
 
@@ -197,37 +244,45 @@ async def test_server_agent_card(agent_httpx_client):
     card = response.json()
 
     assert card == {
-        'capabilities': {'streaming': True},
-        'defaultInputModes': ['text/plain'],
-        'defaultOutputModes': ['text/plain'],
-        'description': 'Test description.',
-        'name': 'Test Name',
-        'preferredTransport': 'JSONRPC',
-        'protocolVersion': '0.3.0',
-        'skills': [
+        "capabilities": {"streaming": True},
+        "defaultInputModes": ["text/plain"],
+        "defaultOutputModes": ["text/plain"],
+        "description": "Test description.",
+        "name": "Test Name",
+        "preferredTransport": "JSONRPC",
+        "protocolVersion": "0.3.0",
+        "skills": [
             {
-                'description': '{"description": "Test description."}',
-                'id': 'no_parameters',
-                'name': 'no_parameters',
-                'tags': ['ichatbio']},
+                "description": '{"description": "Test description."}',
+                "id": "no_parameters",
+                "name": "no_parameters",
+                "tags": ["ichatbio"],
+            },
             {
-                'description': '{"description": "Test description.", "parameters": {"properties": {"test_parameter": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "title": "Test Parameter"}}, "title": "OptionalParameters", "type": "object"}}',
-                'id': 'optional_parameters',
-                'name': 'optional_parameters',
-                'tags': ['ichatbio']},
+                "description": '{"description": "Test description.", "parameters": {"properties": {"test_parameter": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": null, "title": "Test Parameter"}}, "title": "OptionalParameters", "type": "object"}}',
+                "id": "optional_parameters",
+                "name": "optional_parameters",
+                "tags": ["ichatbio"],
+            },
             {
-                'description': '{"description": "Test description.", "parameters": {"properties": {"test_parameter": {"title": "Test Parameter", "type": "integer"}}, "required": ["test_parameter"], "title": "StrictParameters", "type": "object"}}',
-                'id': 'strict_parameters',
-                'name': 'strict_parameters',
-                'tags': ['ichatbio']
-            }
+                "description": '{"description": "Test description.", "parameters": {"properties": {"test_parameter": {"title": "Test Parameter", "type": "integer"}}, "required": ["test_parameter"], "title": "StrictParameters", "type": "object"}}',
+                "id": "strict_parameters",
+                "name": "strict_parameters",
+                "tags": ["ichatbio"],
+            },
         ],
-        'url': AGENT_URL,
-        'version': '1'
+        "url": AGENT_URL,
+        "version": "1",
     }
 
 
-async def run_and_explode(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+async def run_and_explode(
+    self,
+    context: ResponseContext,
+    request: str,
+    entrypoint: str,
+    params: Optional[BaseModel],
+):
     raise ValueError("Rut roh!")
 
 
@@ -235,13 +290,15 @@ async def run_and_explode(self, context: ResponseContext, request: str, entrypoi
 async def test_server(agent, query_test_agent):
     agent.run = types.MethodType(run_and_explode, agent)
 
-    messages = await query_test_agent({
-        "role": "user",
-        "parts": [
-            {"kind": "text", "text": "Do something for me"},
-            {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
-        ],
-        "messageId": str(uuid4()),
-    })
+    messages = await query_test_agent(
+        {
+            "role": "user",
+            "parts": [
+                {"kind": "text", "text": "Do something for me"},
+                {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
+            ],
+            "messageId": str(uuid4()),
+        }
+    )
 
     assert messages[-1].root.result.status.state == TaskState.failed

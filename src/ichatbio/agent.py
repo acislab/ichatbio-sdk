@@ -18,7 +18,13 @@ class IChatBioAgent(ABC):
         pass
 
     @abstractmethod
-    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+    async def run(
+        self,
+        context: ResponseContext,
+        request: str,
+        entrypoint: str,
+        params: Optional[BaseModel],
+    ):
         """
         Receives requests from iChatBio. The `context` object is used to send text responses and initiate
         data-generating processes. There are two ways to respond to requests:

@@ -36,9 +36,9 @@ class CataasAgent(IChatBioAgent):
                 AgentEntrypoint(
                     id="get_cat_image",
                     description="Returns a random cat picture",
-                    parameters=GetCatImageParameters
+                    parameters=GetCatImageParameters,
                 )
-            ]
+            ],
         )
 
     @override
@@ -46,7 +46,13 @@ class CataasAgent(IChatBioAgent):
         return self.agent_card
 
     @override
-    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: GetCatImageParameters):
+    async def run(
+        self,
+        context: ResponseContext,
+        request: str,
+        entrypoint: str,
+        params: GetCatImageParameters,
+    ):
         async with context.begin_process(summary="Searching for cats") as process:
             process: IChatBioAgentProcess
 
@@ -59,17 +65,22 @@ class CataasAgent(IChatBioAgent):
                     model="gpt-5-nano",
                     response_model=CatModel,
                     messages=[
-                        {"role": "system",
-                         "content": "You translate user requests into Cat-As-A-Service (cataas.com) API parameters."},
-                        {"role": "user", "content": request}
+                        {
+                            "role": "system",
+                            "content": "You translate user requests into Cat-As-A-Service (cataas.com) API parameters.",
+                        },
+                        {"role": "user", "content": request},
                     ],
-                    max_retries=3
+                    max_retries=3,
                 )
             except InstructorRetryException:
                 await process.log("Failed to generate search parameters")
                 return
 
-            await process.log("Search parameters", data={"search_parameters": cat.model_dump(exclude_none=True)})
+            await process.log(
+                "Search parameters",
+                data={"search_parameters": cat.model_dump(exclude_none=True)},
+            )
 
             url = cat.to_url(params.format)
             await process.log(f"Sending GET request to {url}")
@@ -78,11 +89,13 @@ class CataasAgent(IChatBioAgent):
             await process.log(f"Received {len(response.content)} bytes")
             await process.create_artifact(
                 mimetype="image/png",
-                description=f"A random cat saying \"{cat.message}\"" if cat.message else "A random cat",
+                description=(
+                    f'A random cat saying "{cat.message}"'
+                    if cat.message
+                    else "A random cat"
+                ),
                 content=response.content,
-                metadata={
-                    "api_query_url": url
-                }
+                metadata={"api_query_url": url},
             )
 
         await context.reply(
@@ -92,17 +105,34 @@ class CataasAgent(IChatBioAgent):
 
 
 COLORS = Literal[
-    "white", "lightgray", "gray", "black", "red", "orange", "yellow", "green", "blue", "indigo", "violet", "pink"]
+    "white",
+    "lightgray",
+    "gray",
+    "black",
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "blue",
+    "indigo",
+    "violet",
+    "pink",
+]
 
 
 class MessageModel(BaseModel):
     """Parameters for adding messages to images."""
 
     text: str = Field(description="Text to add to the picture.")
-    font_size: Optional[int] = Field(None,
-                                     description="Font size to use for the added text. Default is 50. 10 is barely readable. 200 might not fit on the picture.")
-    font_color: Optional[COLORS] = Field(None, description="Font color to use for the added text. Default is white.",
-                                         examples=["red", "green", "yellow", "pink", "gray"])
+    font_size: Optional[int] = Field(
+        None,
+        description="Font size to use for the added text. Default is 50. 10 is barely readable. 200 might not fit on the picture.",
+    )
+    font_color: Optional[COLORS] = Field(
+        None,
+        description="Font color to use for the added text. Default is white.",
+        examples=["red", "green", "yellow", "pink", "gray"],
+    )
 
     @pydantic.field_validator("font_size")
     @classmethod
@@ -115,10 +145,14 @@ class MessageModel(BaseModel):
 class CatModel(BaseModel):
     """API parameters for https://cataas.com."""
 
-    tags: Optional[list[str]] = Field(None,
-                                      description="One-word tags that describe the cat image to return. Leave blank to get any kind of cat picture.",
-                                      examples=[["orange"], ["calico", "sleeping"]])
-    message: Optional[MessageModel] = Field(None, description="Text to add to the picture.")
+    tags: Optional[list[str]] = Field(
+        None,
+        description="One-word tags that describe the cat image to return. Leave blank to get any kind of cat picture.",
+        examples=[["orange"], ["calico", "sleeping"]],
+    )
+    message: Optional[MessageModel] = Field(
+        None, description="Text to add to the picture."
+    )
 
     def to_url(self, format: CataasResponseFormat):
         url = "https://cataas.com/cat"

@@ -21,14 +21,22 @@ def convert_agent_card_to_a2a(card: AgentCard):
         capabilities=a2a.types.AgentCapabilities(streaming=True),
         defaultInputModes=["text/plain"],
         defaultOutputModes=["text/plain"],
-        skills=[a2a.types.AgentSkill(
-            id=entrypoint.id,
-            name=entrypoint.id,
-            description=json.dumps({"description": entrypoint.description} | \
-                                   ({"parameters": entrypoint.parameters.model_json_schema()}
-                                    if entrypoint.parameters else {})),
-            tags=["ichatbio"],
-        ) for entrypoint in card.entrypoints],
+        skills=[
+            a2a.types.AgentSkill(
+                id=entrypoint.id,
+                name=entrypoint.id,
+                description=json.dumps(
+                    {"description": entrypoint.description}
+                    | (
+                        {"parameters": entrypoint.parameters.model_json_schema()}
+                        if entrypoint.parameters
+                        else {}
+                    )
+                ),
+                tags=["ichatbio"],
+            )
+            for entrypoint in card.entrypoints
+        ],
     )
 
 
@@ -42,8 +50,7 @@ def build_agent_app(agent: IChatBioAgent) -> Starlette:
     a2a_agent_card = convert_agent_card_to_a2a(icb_agent_card)
 
     return A2AStarletteApplication(
-        agent_card=a2a_agent_card,
-        http_handler=request_handler
+        agent_card=a2a_agent_card, http_handler=request_handler
     ).build()
 
 

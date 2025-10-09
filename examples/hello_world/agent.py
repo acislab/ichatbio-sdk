@@ -16,20 +16,26 @@ class HelloWorldAgent(IChatBioAgent):
     def get_agent_card(self) -> AgentCard:
         return AgentCard(
             name="The Simplest Agent",
-            description="Can only say \"Hello world!\".",
+            description='Can only say "Hello world!".',
             icon="https://commons.wikimedia.org/wiki/Category:Hello_World#/media/File:Qt_example.png",
             url=None,
             entrypoints=[
                 AgentEntrypoint(
                     id="hello",
-                    description="Responds with \"Hello world!\".",
-                    parameters=None
+                    description='Responds with "Hello world!".',
+                    parameters=None,
                 )
-            ]
+            ],
         )
 
     @override
-    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Optional[BaseModel]):
+    async def run(
+        self,
+        context: ResponseContext,
+        request: str,
+        entrypoint: str,
+        params: Optional[BaseModel],
+    ):
         # Start a process to log the agent's actions
         async with context.begin_process(summary="Thinking") as process:
             process: IChatBioAgentProcess

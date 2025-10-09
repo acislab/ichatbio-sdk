@@ -23,9 +23,9 @@ card = AgentCard(
         AgentEntrypoint(
             id="chat",
             description="Generates a friendly reply.",
-            parameters=Parameters  # Defined below
+            parameters=Parameters,  # Defined below
         )
-    ]
+    ],
 )
 
 
@@ -35,7 +35,13 @@ class FriendlyAgent(IChatBioAgent):
         return card  # The AgentCard we defined earlier
 
     @override
-    async def run(self, context: ResponseContext, request: str, entrypoint: str, params: Parameters):
+    async def run(
+        self,
+        context: ResponseContext,
+        request: str,
+        entrypoint: str,
+        params: Parameters,
+    ):
         if entrypoint != "chat":
             raise ValueError()  # This should never happen
 
@@ -54,12 +60,12 @@ class FriendlyAgent(IChatBioAgent):
                 await process.create_artifact(
                     mimetype="audio/mpeg",
                     description=f"An audio version of the response",
-                    content=audio
+                    content=audio,
                 )
 
             await context.reply(
                 "I have generated a friendly response to the user's request. For their birthday, I also generated an"
                 " audio version of the response."
-                if happy_birthday else
-                "I have generated a friendly response to the user's request."
+                if happy_birthday
+                else "I have generated a friendly response to the user's request."
             )

@@ -37,7 +37,9 @@ class ArtifactResponse:
     kind: Literal["artifact_response"] = "artifact_response"
 
 
-ResponseMessage = DirectResponse | ProcessBeginResponse | ProcessLogResponse | ArtifactResponse
+ResponseMessage = (
+    DirectResponse | ProcessBeginResponse | ProcessLogResponse | ArtifactResponse
+)
 
 
 class ResponseChannel:
@@ -51,7 +53,9 @@ class ResponseChannel:
 
 
 class IChatBioAgentProcess:
-    def __init__(self, channel: ResponseChannel, summary: str, metadata: Optional[dict]):
+    def __init__(
+        self, channel: ResponseChannel, summary: str, metadata: Optional[dict]
+    ):
         self._channel = channel
         self._summary = summary
         self._metadata = metadata
@@ -75,7 +79,9 @@ class IChatBioAgentProcess:
         if self._context_id:
             raise ValueError("Process has already started")
         self._context_id = str(uuid4())
-        await self._submit_if_active(ProcessBeginResponse(self._summary, self._metadata))
+        await self._submit_if_active(
+            ProcessBeginResponse(self._summary, self._metadata)
+        )
 
     async def _end(self):
         """
@@ -98,12 +104,12 @@ class IChatBioAgentProcess:
         await self._submit_if_active(ProcessLogResponse(text, data))
 
     async def create_artifact(
-            self,
-            mimetype: str,
-            description: str,
-            uris: Optional[list[str]] = None,
-            content: Optional[bytes] = None,
-            metadata: Optional[dict] = None
+        self,
+        mimetype: str,
+        description: str,
+        uris: Optional[list[str]] = None,
+        content: Optional[bytes] = None,
+        metadata: Optional[dict] = None,
     ):
         """
         Returns an identifiable digital object to iChatBio. If content is not included, a resolvable URI must be
@@ -116,7 +122,9 @@ class IChatBioAgentProcess:
         :param content: The raw content of the artifact.
         :param metadata: Anything related to the artifact, e.g. provenance, schema, landing page URLs, related artifact URIs.
         """
-        await self._submit_if_active(ArtifactResponse(mimetype, description, uris, content, metadata))
+        await self._submit_if_active(
+            ArtifactResponse(mimetype, description, uris, content, metadata)
+        )
 
 
 class ResponseContext:
@@ -141,12 +149,13 @@ class ResponseContext:
         :param text: A natural language response to the assistant's request.
         :param data: Structured information related to the message.
         """
-        logging.info(f"Sending reply \"{text}\" with data {data}")
+        logging.info(f'Sending reply "{text}" with data {data}')
         await self._channel.submit(DirectResponse(text, data), self._root_context_id)
 
     @asynccontextmanager
-    async def begin_process(self, summary: str, metadata: Optional[dict] = None) -> \
-            AbstractAsyncContextManager[IChatBioAgentProcess]:
+    async def begin_process(
+        self, summary: str, metadata: Optional[dict] = None
+    ) -> AbstractAsyncContextManager[IChatBioAgentProcess]:
         """
         Begins a long-running process to log agent actions and create artifacts as outputs. Users of iChatBio will see a visual representation of the process with the provided summary, and be able to inspect the process to review all recorded log messages and artifacts.
 
