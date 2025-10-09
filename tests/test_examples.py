@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from examples.hello_world.agent import HelloWorldAgent
+from hello_world.agent import HelloWorldAgent
 from ichatbio.agent_response import ProcessLogResponse, ArtifactResponse, ProcessBeginResponse, DirectResponse
 
 
@@ -21,7 +21,7 @@ async def test_hello(context, messages):
 @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Makes LLM calls")
 @pytest.mark.asyncio
 async def test_cataas(context, messages):
-    from examples.cataas.agent import CataasAgent, GetCatImageParameters
+    from cataas.agent import CataasAgent, GetCatImageParameters
 
     agent = CataasAgent()
     await agent.run(context, "I need a Sphynx", "get_cat_image", GetCatImageParameters())
@@ -45,7 +45,7 @@ async def test_cataas(context, messages):
 @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Makes LLM calls")
 @pytest.mark.asyncio
 async def test_vision(context, messages):
-    from examples.vision.agent import VisionAgent, ExamineParameters
+    from vision.agent import VisionAgent, ExamineParameters
 
     agent = VisionAgent()
     await agent.run(

@@ -1,4 +1,4 @@
-from examples.cataas.agent import CataasAgent
+from cataas.agent import CataasAgent
 from ichatbio.server import run_agent_server
 
 if __name__ == "__main__":

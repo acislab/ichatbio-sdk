@@ -1,4 +1,4 @@
-from examples.hello_world.agent import HelloWorldAgent
+from hello_world.agent import HelloWorldAgent
 from ichatbio.server import run_agent_server
 
 if __name__ == "__main__":

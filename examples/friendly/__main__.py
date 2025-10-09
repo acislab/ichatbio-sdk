@@ -1,4 +1,4 @@
-from examples.friendly.agent import FriendlyAgent
+from friendly.agent import FriendlyAgent
 from ichatbio.server import run_agent_server
 
 if __name__ == "__main__":

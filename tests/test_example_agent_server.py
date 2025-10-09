@@ -7,7 +7,7 @@ import pytest_asyncio
 from a2a.types import MessageSendParams, SendStreamingMessageRequest, TaskState
 from httpx import ASGITransport
 
-from examples.hello_world.agent import HelloWorldAgent
+from hello_world.agent import HelloWorldAgent
 from ichatbio.server import build_agent_app
 
 
