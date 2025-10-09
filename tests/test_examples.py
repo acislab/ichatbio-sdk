@@ -2,15 +2,13 @@ import os
 
 import pytest
 
-import examples.vision.agent
-from examples.cataas.agent import CataasAgent, GetCatImageParameters
 from examples.hello_world.agent import HelloWorldAgent
-from examples.vision.agent import VisionAgent
 from ichatbio.agent_response import ProcessLogResponse, ArtifactResponse, ProcessBeginResponse, DirectResponse
 
 
 @pytest.mark.asyncio
 async def test_hello(context, messages):
+
     agent = HelloWorldAgent()
     await agent.run(context, "Hi", "hello", None)
     assert messages == [
@@ -20,13 +18,11 @@ async def test_hello(context, messages):
     ]
 
 
-# The example agents tested below use OpenAI APIs
-if not os.getenv("OPENAI_API_KEY"):
-    pytest.skip(allow_module_level=True)
-
-
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Makes LLM calls")
 @pytest.mark.asyncio
 async def test_cataas(context, messages):
+    from examples.cataas.agent import CataasAgent, GetCatImageParameters
+
     agent = CataasAgent()
     await agent.run(context, "I need a Sphynx", "get_cat_image", GetCatImageParameters())
     process_log = [m for m in messages if type(m) is ProcessLogResponse]
@@ -46,13 +42,16 @@ async def test_cataas(context, messages):
     assert artifact.metadata == {"api_query_url": "https://cataas.com/cat/sphynx"}
 
 
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="Makes LLM calls")
 @pytest.mark.asyncio
 async def test_vision(context, messages):
+    from examples.vision.agent import VisionAgent, ExamineParameters
+
     agent = VisionAgent()
     await agent.run(
         context,
         "In no more than 5 words, what is this?", "find_occurrence_records",
-        examples.vision.agent.ExamineParameters(**{
+        ExamineParameters(**{
             "image": {
                 "local_id": "#0123",
                 "description": "A menacing amphibian.",

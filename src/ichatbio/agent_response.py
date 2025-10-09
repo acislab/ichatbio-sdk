@@ -1,10 +1,9 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
+from dataclasses import dataclass
 from typing import Optional, Literal
 from uuid import uuid4
-
-from attr import dataclass
 
 
 @dataclass

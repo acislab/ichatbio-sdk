@@ -2,7 +2,8 @@ import asyncio
 import base64
 import logging
 import traceback
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, override
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
@@ -11,9 +12,7 @@ from a2a.types import Part, FilePart, DataPart, FileWithUri, FileWithBytes
 from a2a.types import UnsupportedOperationError, TextPart
 from a2a.utils import new_agent_parts_message, new_agent_text_message
 from a2a.utils.errors import ServerError
-from attr import dataclass
 from pydantic import ValidationError
-from typing_extensions import override
 
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import (
