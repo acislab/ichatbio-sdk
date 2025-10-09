@@ -19,12 +19,6 @@ from ichatbio.types import AgentEntrypoint
 AGENT_URL = "http://test.agent"
 
 
-# @pytest.fixture(autouse=True, scope="function")
-# def fix_event_loop_reuse_errors():
-#     from sse_starlette.sse import AppStatus
-#     AppStatus.should_exit_event = asyncio.Event()
-
-
 @pytest.fixture
 def agent():
     class OptionalParameters(BaseModel):
