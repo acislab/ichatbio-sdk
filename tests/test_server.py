@@ -6,7 +6,7 @@ import a2a.client
 import httpx
 import pytest
 import pytest_asyncio
-from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard, TaskState
+from a2a.types import MessageSendParams, SendStreamingMessageRequest, AgentCard, TaskState, SendStreamingMessageResponse
 from httpx import ASGITransport
 from pydantic import BaseModel
 
@@ -63,25 +63,26 @@ async def agent_httpx_client(agent):
         yield httpx_client
 
 
-@pytest_asyncio.fixture(scope="function")
-async def agent_a2a_client(agent_httpx_client):
-    yield a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
+@pytest.fixture(scope="function")
+def query_test_agent(agent_httpx_client):
+    client = a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
 
+    async def query(message_payload) -> list[SendStreamingMessageResponse]:
+        send_message_payload = {"message": message_payload}
 
-async def query_test_agent(agent_a2a_client, message_payload):
-    send_message_payload = {"message": message_payload}
+        request = SendStreamingMessageRequest(
+            id=str(uuid4()), params=MessageSendParams(**send_message_payload)
+        )
 
-    request = SendStreamingMessageRequest(
-        id=str(uuid4()), params=MessageSendParams(**send_message_payload)
-    )
+        messages = [m async for m in client.send_message_streaming(request)]
+        return messages
 
-    messages = [m async for m in agent_a2a_client.send_message_streaming(request)]
-    return messages
+    return query
 
 
 @pytest.mark.asyncio
-async def test_server(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_server(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -100,8 +101,8 @@ async def test_server(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_strict_parameters(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_strict_parameters(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -117,8 +118,8 @@ async def test_strict_parameters(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_missing_strict_parameters(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_missing_strict_parameters(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -131,8 +132,8 @@ async def test_missing_strict_parameters(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_optional_parameters(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_optional_parameters(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -148,8 +149,8 @@ async def test_optional_parameters(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_missing_optional_parameters(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_missing_optional_parameters(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -164,8 +165,8 @@ async def test_missing_optional_parameters(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_bad_parameters(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_bad_parameters(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -181,8 +182,8 @@ async def test_bad_parameters(agent_a2a_client):
 
 
 @pytest.mark.asyncio
-async def test_bad_entrypoint(agent_a2a_client):
-    messages = await query_test_agent(agent_a2a_client, {
+async def test_bad_entrypoint(query_test_agent):
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
@@ -237,10 +238,10 @@ async def run_and_explode(self, context: ResponseContext, request: str, entrypoi
 
 
 @pytest.mark.asyncio
-async def test_server(agent, agent_a2a_client):
+async def test_server(agent, query_test_agent):
     agent.run = types.MethodType(run_and_explode, agent)
 
-    messages = await query_test_agent(agent_a2a_client, {
+    messages = await query_test_agent({
         "role": "user",
         "parts": [
             {"kind": "text", "text": "Do something for me"},
