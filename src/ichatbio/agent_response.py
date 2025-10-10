@@ -47,7 +47,7 @@ class ResponseChannel:
         self.message_box: asyncio.Queue[ResponseMessage] = asyncio.Queue(maxsize=1)
         self.task_id = task_id
 
-    async def submit(self, message: ResponseMessage, context_id: str):
+    async def submit(self, message: ResponseMessage):
         await self.message_box.put(message)
         await self.message_box.join()
 
@@ -66,7 +66,7 @@ class IChatBioAgentProcess:
             raise ValueError("Process is not yet started")
         if not self._channel:
             raise ValueError("Process is over")
-        await self._channel.submit(message, self._context_id)
+        await self._channel.submit(message)
 
     async def _begin(self):
         """
@@ -150,7 +150,7 @@ class ResponseContext:
         :param data: Structured information related to the message.
         """
         logging.info(f'Sending reply "{text}" with data {data}')
-        await self._channel.submit(DirectResponse(text, data), self._root_context_id)
+        await self._channel.submit(DirectResponse(text, data))
 
     @asynccontextmanager
     async def begin_process(
