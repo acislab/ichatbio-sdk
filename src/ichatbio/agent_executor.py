@@ -22,7 +22,8 @@ from ichatbio.agent_response import (
     ArtifactResponse,
     ProcessLogResponse,
     ProcessBeginResponse,
-    DirectResponse, )
+    DirectResponse,
+)
 
 
 class BadRequest(ValueError):
@@ -39,15 +40,73 @@ def _make_text_and_data_parts(text: str, data: Optional[dict], metadata: dict):
 class AgentFinished:
     pass
 
+
 @dataclass
 class AgentCrashed:
     exc: Exception
+
 
 @dataclass
 class Request:
     text: str
     entrypoint: str
     arguments: Optional[dict]
+
+
+def new_agent_response_message(
+    parts: list[TextPart | FilePart | DataPart], context_id: str, task_id: str
+):
+    return new_agent_parts_message(
+        [Part(root=p) for p in parts],
+        context_id,
+        task_id,
+    )
+
+
+def make_artifact_parts(
+    artifact_metadata: dict,
+    content: bytes,
+    description: str,
+    mimetype: str,
+    uris: list[str],
+) -> list[TextPart | FilePart | DataPart]:
+    metadata = {"ichatbio_type": "artifact_response"}
+
+    data = {
+        "metadata": artifact_metadata,
+        "uris": uris if uris else [],
+    }
+
+    if content is not None:
+        file = FileWithBytes(
+            bytes=base64.b64encode(content),
+            mimeType=mimetype,
+            name=description,
+        )
+    elif uris:
+        file = FileWithUri(uri=uris[0], mimeType=mimetype, name=description)
+    else:
+        raise ValueError("Artifact message must have content or at least one URI")
+
+    return [
+        FilePart(file=file, metadata=metadata),
+        DataPart(data=data, metadata=metadata),
+    ]
+
+
+def make_text_data_parts(kind: str, text: str, data: dict):
+    metadata = {
+        "ichatbio_type": kind,
+    }
+
+    if data:
+        return [
+            TextPart(text=text, metadata=metadata),
+            DataPart(data=data, metadata=metadata),
+        ]
+    else:
+        return [TextPart(text=text, metadata=metadata)]
+
 
 class IChatBioAgentExecutor(AgentExecutor):
     """
@@ -78,16 +137,18 @@ class IChatBioAgentExecutor(AgentExecutor):
             request = await self.parse_request(context.message)
         # If something is wrong with the request, mark the task as "rejected"
         except BadRequest as e:
-            logging.warning(f'Rejecting request: {context.message}', exc_info=e)
-            await updater.reject(updater.new_agent_message(
-                [
-                    Part(
-                        root=TextPart(
-                            text=f"Request rejected. Reason: {traceback.format_exc(limit=0)}"
+            logging.warning(f"Rejecting request: {context.message}", exc_info=e)
+            await updater.reject(
+                updater.new_agent_message(
+                    [
+                        Part(
+                            root=TextPart(
+                                text=f"Request rejected. Reason: {traceback.format_exc(limit=0)}"
+                            )
                         )
-                    )
-                ]
-            ))
+                    ]
+                )
+            )
             return
 
         logging.info(f"Accepting request: {request}")
@@ -95,12 +156,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
         # Run the agent in a separate task to produce response messages
         response_channel = ResponseChannel(context.task_id)
-        agent_task = asyncio.create_task(
-            self.run_agent(
-                response_channel,
-                request
-            )
-        )
+        agent_task = asyncio.create_task(self.run_agent(response_channel, request))
 
         # Consume agent response messages
         while True:
@@ -117,7 +173,8 @@ class IChatBioAgentExecutor(AgentExecutor):
                             new_agent_text_message(
                                 "".join(traceback.format_exception(exc, limit=0)),
                                 context.context_id,
-                                context.task_id)
+                                context.task_id,
+                            )
                         )
                         raise exc
 
@@ -126,24 +183,9 @@ class IChatBioAgentExecutor(AgentExecutor):
                         | ProcessBeginResponse(kind=kind, summary=text, data=data)
                         | ProcessLogResponse(kind=kind, text=text, data=data)
                     ):
-                        metadata = {
-                            "ichatbio_type": kind,
-                            "ichatbio_context_id": context.context_id,
-                        }
-
-                        if data:
-                            parts = [
-                                TextPart(text=text, metadata=metadata),
-                                DataPart(data=data, metadata=metadata),
-                            ]
-                        else:
-                            parts = [
-                                TextPart(text=text, metadata=metadata)
-                            ]
-
                         await updater.start_work(
-                            new_agent_parts_message(
-                                [Part(root=p) for p in parts],
+                            new_agent_response_message(
+                                make_text_data_parts(kind, text, data),
                                 context.context_id,
                                 context.task_id,
                             )
@@ -156,39 +198,15 @@ class IChatBioAgentExecutor(AgentExecutor):
                         content=content,
                         metadata=artifact_metadata,
                     ):
-                        metadata = {
-                            "ichatbio_type": "artifact_response",
-                            "ichatbio_context_id": context.context_id,
-                        }
-
-                        data = {
-                            "metadata": artifact_metadata,
-                            "uris": uris if uris else [],
-                        }
-
-                        if content is not None:
-                            file = FileWithBytes(
-                                bytes=base64.b64encode(content),
-                                mimeType=mimetype,
-                                name=description,
-                            )
-                        elif uris:
-                            file = FileWithUri(
-                                uri=uris[0], mimeType=mimetype, name=description
-                            )
-                        else:
-                            raise ValueError(
-                                "Artifact message must have content or at least one URI"
-                            )
-
-                        parts = [
-                            FilePart(file=file, metadata=metadata),
-                            DataPart(data=data, metadata=metadata),
-                        ]
-
                         await updater.start_work(
-                            new_agent_parts_message(
-                                [Part(root=p) for p in parts],
+                            new_agent_response_message(
+                                make_artifact_parts(
+                                    artifact_metadata,
+                                    content,
+                                    description,
+                                    mimetype,
+                                    uris,
+                                ),
                                 context.context_id,
                                 context.task_id,
                             )
@@ -197,27 +215,30 @@ class IChatBioAgentExecutor(AgentExecutor):
 
                     case _:
                         agent_task.cancel()
-                        raise ValueError(f'Unexpected response message type "{type(icb_message)}": {icb_message}')
+                        raise ValueError(
+                            f'Unexpected response message type "{type(icb_message)}": {icb_message}'
+                        )
             finally:
                 response_channel.message_box.task_done()
-
 
     async def parse_request(self, request: Message):
         match request:
             # TODO: for now, assume messages begin with a text part and a data part
             case Message(
-                        parts=[
-                            Part(root=TextPart(text=text)),
-                            Part(root=DataPart(data=data)),
-                        ]
-                    ):
+                parts=[
+                    Part(root=TextPart(text=text)),
+                    Part(root=DataPart(data=data)),
+                ]
+            ):
                 request_text = text
                 request_data = data
             case _:
                 raise BadRequest("Request does not contain the expected message parts")
 
         match request_data:
-            case {"entrypoint": {"id": entrypoint_id, "parameters": raw_entrypoint_params}}:
+            case {
+                "entrypoint": {"id": entrypoint_id, "parameters": raw_entrypoint_params}
+            }:
                 entrypoint = self._get_agent_entrypoint(entrypoint_id)
                 if not entrypoint.parameters:
                     raise BadRequest("Entrypoint does not take arguments")
@@ -270,7 +291,6 @@ class IChatBioAgentExecutor(AgentExecutor):
                 f"An exception was raised while handling request {request}", exc_info=e
             )
             await response_channel.message_box.put(AgentCrashed(e))
-
 
     @override
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
