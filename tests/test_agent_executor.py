@@ -335,8 +335,8 @@ async def test_receive_artifact_ack(execute, executor):
 
     async def work():
         nonlocal goodie_box
-        await channel.receive()
-        goodie_box = [goodie]
+        async with channel.receive():
+            goodie_box = [goodie]
         await channel.submit(AgentFinished())
 
     agent_task = asyncio.create_task(work())

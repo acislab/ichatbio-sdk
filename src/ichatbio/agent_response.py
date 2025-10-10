@@ -65,15 +65,6 @@ class ResponseChannel:
         self._message_box.task_done()
 
 
-    async def receive_artifact(self) -> Artifact:
-        async with self.receive() as message:
-            match message:
-                case ArtifactAck(artifact=artifact):
-                    return artifact
-                case _:
-                    raise ValueError("Received unexpected message type")
-
-
 class IChatBioAgentProcess:
     def __init__(
         self, channel: ResponseChannel, summary: str, metadata: Optional[dict]
@@ -147,8 +138,15 @@ class IChatBioAgentProcess:
         await self._submit_if_active(
             ArtifactResponse(mimetype, description, uris, content, metadata)
         )
-        artifact = await self._channel.receive_artifact()
-        return artifact
+
+        async with self._channel.receive() as m:
+            message = m
+
+        match message:
+            case ArtifactAck(artifact=artifact):
+                return artifact
+            case _:
+                raise ValueError("Received unexpected message type")
 
 
 
