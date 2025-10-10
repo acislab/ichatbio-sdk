@@ -23,10 +23,10 @@ class InMemoryResponseChannel(ResponseChannel):
     """
 
     def __init__(self, message_buffer: list):
-        super().__init__("testid")
+        super().__init__()
         self.message_buffer = message_buffer
 
-    async def submit(self, message: ResponseMessage, context_id: str):
+    async def submit(self, message: ResponseMessage):
         self.message_buffer.append(message)
 
 

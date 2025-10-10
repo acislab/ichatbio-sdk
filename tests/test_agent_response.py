@@ -12,6 +12,7 @@ from ichatbio.agent_response import (
     ResponseContext,
     IChatBioAgentProcess,
     ResponseMessage,
+    ArtifactAck,
 )
 
 CONTEXT_ID = "1234"
@@ -20,7 +21,7 @@ TASK_ID = "abcd"
 
 @pytest.fixture
 def channel():
-    return ResponseChannel(TASK_ID)
+    return ResponseChannel()
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ def run(channel):
 
         async def work_and_finish():
             await work
-            await channel.message_box.put(done)
+            await channel.submit(done)
 
         task = asyncio.create_task(work_and_finish())
 
@@ -46,6 +47,9 @@ def run(channel):
 
             if message is done:
                 break
+
+            if isinstance(message, ArtifactResponse):
+                await channel.submit(ArtifactAck(None))
 
             messages.append(message)
 

@@ -5,6 +5,7 @@ import traceback
 from dataclasses import dataclass
 from typing import Optional, override
 
+import a2a.utils
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
@@ -15,6 +16,7 @@ from a2a.utils import new_agent_parts_message, new_agent_text_message
 from a2a.utils.errors import ServerError
 from pydantic import ValidationError
 
+import ichatbio.types
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import (
     ResponseContext,
@@ -22,7 +24,7 @@ from ichatbio.agent_response import (
     ArtifactResponse,
     ProcessLogResponse,
     ProcessBeginResponse,
-    DirectResponse,
+    DirectResponse, ArtifactAck,
 )
 
 
@@ -51,6 +53,12 @@ class Request:
     text: str
     entrypoint: str
     arguments: Optional[dict]
+
+
+@dataclass
+class SuspendedTask:
+    async_task: asyncio.Task
+    response_channel: ResponseChannel
 
 
 def new_agent_response_message(
@@ -117,6 +125,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
     def __init__(self, agent: IChatBioAgent):
         self.agent = agent
+        self.suspended_tasks: dict[str, SuspendedTask] = {}
 
     @override
     async def execute(
@@ -127,36 +136,52 @@ class IChatBioAgentExecutor(AgentExecutor):
         updater = TaskUpdater(event_queue, context.task_id, context.context_id)
 
         if context.current_task:
-            return
+            # Resume existing task if it was waiting
+            match self.suspended_tasks.get(context.task_id):
+                case SuspendedTask(async_task=agent_task, response_channel=response_channel):
+                    task = context.current_task
+                    logging.info(f"Resuming execution of suspended task")
 
-        # Start a new task
-        await updater.submit()
+                    match context.message:
+                        case Message(parts=[Part(root=DataPart(data={"artifact": artifact_data}))]):
+                            artifact = ichatbio.types.Artifact(**artifact_data)
+                            await response_channel.submit(ArtifactAck(artifact))
+                        case _:
+                            raise ValueError(f"Failed to resume task: invalid artifact data")
+                case _:
+                    raise ValueError("Failed to resume task: missing expected metadata")
+        else:
+            task = a2a.utils.new_task(context.message)
+            await event_queue.enqueue_event(task)
 
-        # Process the request
-        try:
-            request = await self.parse_request(context.message)
-        # If something is wrong with the request, mark the task as "rejected"
-        except BadRequest as e:
-            logging.warning(f"Rejecting request: {context.message}", exc_info=e)
-            await updater.reject(
-                updater.new_agent_message(
-                    [
-                        Part(
-                            root=TextPart(
-                                text=f"Request rejected. Reason: {traceback.format_exc(limit=0)}"
+            # Start a new task
+            await updater.submit()
+
+            # Process the request
+            try:
+                request = await self.parse_request(context.message)
+            # If something is wrong with the request, mark the task as "rejected"
+            except BadRequest as e:
+                logging.warning(f"Rejecting request: {context.message}", exc_info=e)
+                await updater.reject(
+                    updater.new_agent_message(
+                        [
+                            Part(
+                                root=TextPart(
+                                    text=f"Request rejected. Reason: {traceback.format_exc(limit=0)}"
+                                )
                             )
-                        )
-                    ]
+                        ]
+                    )
                 )
-            )
-            return
+                return
 
-        logging.info(f"Accepting request: {request}")
-        await updater.start_work()
+            logging.info(f"Accepting request: {request}")
+            await updater.start_work()
 
-        # Run the agent in a separate task to produce response messages
-        response_channel = ResponseChannel(context.task_id)
-        agent_task = asyncio.create_task(self.run_agent(response_channel, request))
+            # Run the agent in a separate task to produce response messages
+            response_channel = ResponseChannel()
+            agent_task = asyncio.create_task(self.run_agent(response_channel, request))
 
         # Consume agent response messages
         while True:
@@ -198,7 +223,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                         content=content,
                         metadata=artifact_metadata,
                     ):
-                        await updater.start_work(
+                        await updater.requires_input(
                             new_agent_response_message(
                                 make_artifact_parts(
                                     artifact_metadata,
@@ -209,9 +234,12 @@ class IChatBioAgentExecutor(AgentExecutor):
                                 ),
                                 context.context_id,
                                 context.task_id,
-                            )
+                            ),
+                            final=True
                         )
-                        # TODO: Keep the A2A task and async task alive and wait for an artifact ack
+
+                        self.suspended_tasks[task.id] = SuspendedTask(agent_task, response_channel)
+                        break
 
                     case _:
                         agent_task.cancel()

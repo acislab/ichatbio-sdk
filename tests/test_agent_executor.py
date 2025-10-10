@@ -1,10 +1,11 @@
+import asyncio
 import base64
 from typing import Iterable, override
 
 import a2a.server.events
 import pytest
 import pytest_asyncio
-from a2a.server.agent_execution import SimpleRequestContextBuilder, RequestContext
+from a2a.server.agent_execution import SimpleRequestContextBuilder
 from a2a.server.events import EventQueue
 from a2a.types import (
     DataPart,
@@ -19,13 +20,16 @@ from a2a.types import (
     TaskStatus,
     TaskState,
     Role,
+    Task,
 )
 
+import ichatbio.types
 from ichatbio.agent_executor import (
     IChatBioAgentExecutor,
     AgentCrashed,
     AgentFinished,
     Request,
+    SuspendedTask,
 )
 from ichatbio.agent_response import (
     ResponseChannel,
@@ -40,10 +44,8 @@ from ichatbio.agent_response import ResponseMessage
 class MockExecutor(IChatBioAgentExecutor):
     _agent_messages: Iterable[ResponseMessage]
 
-    def __init__(self, request_context: RequestContext, event_queue: EventQueue):
+    def __init__(self):
         super().__init__(None)
-        self.request_context = request_context
-        self.event_queue = event_queue
 
     def agent_response(self, *messages):
         self._agent_messages = messages
@@ -72,8 +74,9 @@ def read_events(event_queue):
 
         yield event
 
-        if event.final:
-            break
+        match event:
+            case TaskStatusUpdateEvent(final=True):
+                break
 
 
 @pytest_asyncio.fixture
@@ -88,11 +91,16 @@ def message_queue(event_queue):
 
 @pytest_asyncio.fixture
 async def channel(event_queue):
-    yield ResponseChannel("task-1")
+    yield ResponseChannel()
+
+
+@pytest.fixture
+def executor():
+    return MockExecutor()
 
 
 @pytest_asyncio.fixture
-async def execute(event_queue):
+async def execute(event_queue, executor):
     text = "request text"
     data = {
         "entrypoint": {
@@ -106,21 +114,25 @@ async def execute(event_queue):
         DataPart(data=data),
     ]
 
-    request_context = await SimpleRequestContextBuilder().build(
-        context_id="context-1",
-        task_id="task-1",
-        params=MessageSendParams(
-            message=a2a.types.Message(
+    async def run(
+        *agent_messages: ResponseMessage,
+        request: a2a.types.Message = None,
+        task: Task = None,
+    ) -> list[a2a.server.events.Event]:
+        if request is None:
+            request = a2a.types.Message(
                 parts=[Part(root=part) for part in parts],
                 role=a2a.types.Role.user,
                 message_id="request-1",
             )
-        ),
-    )
 
-    executor = MockExecutor(request_context, event_queue)
+        request_context = await SimpleRequestContextBuilder().build(
+            context_id="context-1",
+            task_id="task-1",
+            task=task,
+            params=MessageSendParams(message=request),
+        )
 
-    async def run(*agent_messages: ResponseMessage) -> list[a2a.server.events.Event]:
         executor.agent_response(*agent_messages)
         await executor.execute(request_context, event_queue)
         return list(read_events(event_queue))
@@ -133,6 +145,34 @@ async def test_executor(execute):
     events = await execute(DirectResponse("hello"))
 
     assert events == [
+        Task(
+            context_id="context-1",
+            id="task-1",
+            status=TaskStatus(state=TaskState.submitted),
+            history=[
+                Message(
+                    context_id="context-1",
+                    message_id="request-1",
+                    task_id="task-1",
+                    role="user",
+                    parts=[
+                        Part(root=TextPart(text="request text")),
+                        Part(
+                            root=DataPart(
+                                data={
+                                    "entrypoint": {
+                                        "id": "fake_entrypoint",
+                                        "parameters": {
+                                            "fake_parameter": "doesn't matter"
+                                        },
+                                    }
+                                }
+                            )
+                        ),
+                    ],
+                )
+            ],
+        ),
         TaskStatusUpdateEvent(
             context_id="context-1",
             final=False,
@@ -155,10 +195,7 @@ async def test_executor(execute):
                     parts=[
                         Part(
                             root=TextPart(
-                                metadata={
-                                    "ichatbio_type": "direct_response",
-                                    "ichatbio_context_id": "context-1",
-                                },
+                                metadata={"ichatbio_type": "direct_response"},
                                 text="hello",
                             )
                         )
@@ -183,22 +220,13 @@ async def test_executor(execute):
 async def test_submit_direct_response_with_data(execute):
     events = await execute(DirectResponse("hello", data={"name": "barb"}))
 
-    assert events[2].status.message.parts == [
+    assert events[3].status.message.parts == [
         Part(
-            root=TextPart(
-                metadata={
-                    "ichatbio_type": "direct_response",
-                    "ichatbio_context_id": "context-1",
-                },
-                text="hello",
-            )
+            root=TextPart(metadata={"ichatbio_type": "direct_response"}, text="hello")
         ),
         Part(
             root=DataPart(
-                metadata={
-                    "ichatbio_type": "direct_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "direct_response"},
                 data={"name": "barb"},
             )
         ),
@@ -209,14 +237,11 @@ async def test_submit_direct_response_with_data(execute):
 async def test_submit_begin_process(execute):
     events = await execute(ProcessBeginResponse("thinking"))
 
-    assert events[2].status.message.parts == [
+    assert events[3].status.message.parts == [
         Part(
             root=TextPart(
                 kind="text",
-                metadata={
-                    "ichatbio_type": "begin_process_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "begin_process_response"},
                 text="thinking",
             )
         )
@@ -227,14 +252,11 @@ async def test_submit_begin_process(execute):
 async def test_submit_process_log(execute):
     events = await execute(ProcessLogResponse("doing stuff"))
 
-    assert events[2].status.message.parts == [
+    assert events[3].status.message.parts == [
         Part(
             root=TextPart(
                 kind="text",
-                metadata={
-                    "ichatbio_type": "process_log_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "process_log_response"},
                 text="doing stuff",
             )
         )
@@ -252,7 +274,7 @@ async def test_submit_artifact_with_online_content(execute):
         )
     )
 
-    assert events[2].status.message.parts == [
+    assert events[3].status.message.parts == [
         Part(
             root=FilePart(
                 file=FileWithUri(
@@ -260,10 +282,7 @@ async def test_submit_artifact_with_online_content(execute):
                     name="test artifact",
                     uri="https://test.artifact",
                 ),
-                metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "artifact_response"},
             )
         ),
         Part(
@@ -272,13 +291,12 @@ async def test_submit_artifact_with_online_content(execute):
                     "uris": ["https://test.artifact"],
                     "metadata": {"source": "nowhere"},
                 },
-                metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "artifact_response"},
             )
         ),
     ]
+
+    assert events[-1].status.state == TaskState.input_required
 
 
 @pytest.mark.asyncio
@@ -292,7 +310,7 @@ async def test_submit_artifact_with_offline_content(execute):
         )
     )
 
-    assert events[2].status.message.parts == [
+    assert events[3].status.message.parts == [
         Part(
             root=FilePart(
                 file=FileWithBytes(
@@ -300,19 +318,62 @@ async def test_submit_artifact_with_offline_content(execute):
                     name="test artifact",
                     bytes=base64.b64encode(b"hello"),
                 ),
-                metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "artifact_response"},
             )
         ),
         Part(
             root=DataPart(
                 data={"metadata": {"source": "nowhere"}, "uris": []},
-                metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
-                },
+                metadata={"ichatbio_type": "artifact_response"},
             )
         ),
     ]
+
+    assert events[-1].status.state == TaskState.input_required
+
+
+@pytest.mark.asyncio
+async def test_receive_artifact_ack(execute, executor):
+    channel = ResponseChannel()
+
+    goodie = object()
+    goodie_box = [None]
+
+    async def work():
+        nonlocal goodie_box
+        await channel.receive_artifact()
+        goodie_box = [goodie]
+        await channel.submit(AgentFinished())
+
+    agent_task = asyncio.create_task(work())
+
+    executor.suspended_tasks["task-1"] = SuspendedTask(agent_task, channel)
+    artifact = ichatbio.types.Artifact(
+        local_id="#0000",
+        mimetype="text/plain",
+        description="Test artifact",
+        uris=["hash://sha256//blah"],
+        metadata={},
+    )
+
+    assert goodie_box[0] is None
+
+    events = await execute(
+        DirectResponse("Got it!"),
+        request=Message(
+            message_id="message-2",
+            task_id="task-1",
+            role="user",
+            parts=[
+                DataPart(data={"artifact": artifact.model_dump()}),
+            ],
+        ),
+        task=Task(
+            context_id="context-1",
+            id="task-1",
+            status=TaskStatus(state=TaskState.input_required),
+        ),
+    )
+
+    assert goodie_box[0] == goodie
+    assert events[-1].status.state == TaskState.completed

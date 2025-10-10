@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import Optional, Literal
 from uuid import uuid4
 
+from ichatbio.types import Artifact
+
 
 @dataclass
 class DirectResponse:
@@ -42,14 +44,28 @@ ResponseMessage = (
 )
 
 
+@dataclass
+class ArtifactAck:
+    artifact: Artifact
+
+
 class ResponseChannel:
-    def __init__(self, task_id: str):
+    def __init__(self):
         self.message_box: asyncio.Queue[ResponseMessage] = asyncio.Queue(maxsize=1)
-        self.task_id = task_id
 
     async def submit(self, message: ResponseMessage):
         await self.message_box.put(message)
         await self.message_box.join()
+
+    async def receive_artifact(self) -> Artifact:
+        message = await self.message_box.get()
+        self.message_box.task_done()
+
+        match message:
+            case ArtifactAck(artifact=artifact):
+                return artifact
+            case _:
+                raise ValueError("Received unexpected message type")
 
 
 class IChatBioAgentProcess:
@@ -125,6 +141,10 @@ class IChatBioAgentProcess:
         await self._submit_if_active(
             ArtifactResponse(mimetype, description, uris, content, metadata)
         )
+        artifact = await self._channel.receive_artifact()
+        return artifact
+
+
 
 
 class ResponseContext:
@@ -134,7 +154,6 @@ class ResponseContext:
 
     def __init__(self, channel: ResponseChannel):
         self._channel = channel
-        self._root_context_id = channel.task_id
 
     async def reply(self, text: Optional[str], data: Optional[dict] = None):
         """

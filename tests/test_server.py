@@ -19,10 +19,10 @@ from a2a.types import (
 from httpx import ASGITransport
 from pydantic import BaseModel
 
-import ichatbio.types
 from ichatbio.agent import IChatBioAgent
-from ichatbio.agent_response import ResponseContext
+from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.server import build_agent_app
+from ichatbio.types import AgentCard, Artifact
 from ichatbio.types import AgentEntrypoint
 
 AGENT_URL = "http://test.agent"
@@ -38,7 +38,7 @@ def agent():
 
     class TestAgent(IChatBioAgent):
         def get_agent_card(self) -> AgentCard:
-            return ichatbio.types.AgentCard(
+            return AgentCard(
                 name="Test Name",
                 description="Test description.",
                 icon=None,
@@ -58,6 +58,11 @@ def agent():
                         description="Test description.",
                         parameters=StrictParameters,
                     ),
+                    AgentEntrypoint(
+                        id="make_artifact",
+                        description="Test description.",
+                        parameters=None,
+                    ),
                 ],
                 url=AGENT_URL,
             )
@@ -69,7 +74,24 @@ def agent():
             entrypoint: str,
             params: Optional[BaseModel],
         ):
-            await context.reply("first message")
+            if entrypoint == "make_artifact":
+                async with context.begin_process("Creating artifact") as process:
+                    process: IChatBioAgentProcess
+                    artifact = await process.create_artifact(
+                        mimetype="text/plain",
+                        description="The artifact",
+                        content=b"some text",
+                    )
+                    assert artifact == Artifact(
+                        local_id="#0000",
+                        description="The artifact",
+                        mimetype="text/plain",
+                        uris=["hash://sha256//blah"],
+                        metadata={},
+                    )
+                    await process.log("resuming")
+            else:
+                await context.reply("first message")
 
     return TestAgent()
 
@@ -270,6 +292,14 @@ async def test_server_agent_card(agent_httpx_client):
                 "name": "strict_parameters",
                 "tags": ["ichatbio"],
             },
+            {
+                "description": '{"description": "Test description."}',
+                "id": "make_artifact",
+                "name": "make_artifact",
+                "tags": [
+                    "ichatbio",
+                ],
+            },
         ],
         "url": AGENT_URL,
         "version": "1",
@@ -295,3 +325,46 @@ async def test_server(agent, query_test_agent):
     )
 
     assert messages[-1].root.result.status.state == TaskState.failed
+
+
+@pytest.mark.asyncio
+async def test_artifact_ack(query_test_agent):
+    messages = await query_test_agent(
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(data={"entrypoint": {"id": "make_artifact"}}),
+            ],
+        )
+    )
+
+    last_message = messages[-1].root.result
+    assert last_message.status.state == TaskState.input_required
+
+    task_id = last_message.task_id
+    file_part = last_message.status.message.parts[0].root.file
+    data_part = last_message.status.message.parts[1].root.data
+
+    artifact = Artifact(
+        local_id="#0000",
+        mimetype=file_part.mime_type,
+        description=file_part.name,
+        uris=["hash://sha256//blah"],
+        metadata=data_part["metadata"] or {},
+    )
+
+    messages = await query_test_agent(
+        Message(
+            message_id="message-2",
+            task_id=task_id,
+            role="user",
+            parts=[
+                DataPart(data={"artifact": artifact}),
+            ],
+        )
+    )
+
+    last_message = messages[-1].root.result
+    assert last_message.status.state == TaskState.completed
