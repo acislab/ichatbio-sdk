@@ -12,6 +12,9 @@ from a2a.types import (
     AgentCard,
     TaskState,
     SendStreamingMessageResponse,
+    Message,
+    TextPart,
+    DataPart,
 )
 from httpx import ASGITransport
 from pydantic import BaseModel
@@ -83,11 +86,9 @@ async def agent_httpx_client(agent):
 def query_test_agent(agent_httpx_client):
     client = a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
 
-    async def query(message_payload) -> list[SendStreamingMessageResponse]:
-        send_message_payload = {"message": message_payload}
-
+    async def query(message) -> list[SendStreamingMessageResponse]:
         request = SendStreamingMessageRequest(
-            id=str(uuid4()), params=MessageSendParams(**send_message_payload)
+            id=str(uuid4()), params=MessageSendParams(message=message)
         )
 
         messages = [m async for m in client.send_message_streaming(request)]
@@ -121,22 +122,21 @@ async def test_server(query_test_agent):
 @pytest.mark.asyncio
 async def test_strict_parameters(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {
-                    "kind": "data",
-                    "data": {
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(
+                    data={
                         "entrypoint": {
                             "id": "strict_parameters",
                             "parameters": {"test_parameter": 1},
                         }
-                    },
-                },
+                    }
+                ),
             ],
-            "messageId": str(uuid4()),
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.completed

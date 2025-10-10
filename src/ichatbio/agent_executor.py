@@ -217,12 +217,6 @@ class IChatBioAgentExecutor(AgentExecutor):
                 raise BadRequest("Request does not contain the expected message parts")
 
         match request_data:
-            case {"entrypoint": {"id": entrypoint_id}}:
-                entrypoint = self._get_agent_entrypoint(entrypoint_id)
-                if entrypoint.parameters:
-                    raise BadRequest("Missing entrypoint arguments")
-                entrypoint_params = None
-
             case {"entrypoint": {"id": entrypoint_id, "parameters": raw_entrypoint_params}}:
                 entrypoint = self._get_agent_entrypoint(entrypoint_id)
                 if not entrypoint.parameters:
@@ -231,6 +225,12 @@ class IChatBioAgentExecutor(AgentExecutor):
                     entrypoint_params = entrypoint.parameters(**raw_entrypoint_params)
                 except ValidationError as e:
                     raise BadRequest("Invalid entrypoint arguments") from e
+
+            case {"entrypoint": {"id": entrypoint_id}}:
+                entrypoint = self._get_agent_entrypoint(entrypoint_id)
+                if entrypoint.parameters:
+                    raise BadRequest("Missing entrypoint arguments")
+                entrypoint_params = None
 
             case _:
                 raise BadRequest("Failed to parse entrypoint data")
