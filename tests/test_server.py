@@ -86,7 +86,7 @@ async def agent_httpx_client(agent):
 def query_test_agent(agent_httpx_client):
     client = a2a.client.A2AClient(agent_httpx_client, url="http://test.agent")
 
-    async def query(message) -> list[SendStreamingMessageResponse]:
+    async def query(message: Message) -> list[SendStreamingMessageResponse]:
         request = SendStreamingMessageRequest(
             id=str(uuid4()), params=MessageSendParams(message=message)
         )
@@ -100,14 +100,14 @@ def query_test_agent(agent_httpx_client):
 @pytest.mark.asyncio
 async def test_server(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(data={"entrypoint": {"id": "no_parameters"}}),
             ],
-            "messageId": str(uuid4()),
-        }
+        )
     )
 
     assert messages[0].root.result.status.state == TaskState.submitted
@@ -145,14 +145,14 @@ async def test_strict_parameters(query_test_agent):
 @pytest.mark.asyncio
 async def test_missing_strict_parameters(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {"kind": "data", "data": {"entrypoint": {"id": "strict_parameters"}}},
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(data={"entrypoint": {"id": "strict_parameters"}}),
             ],
-            "messageId": uuid4().hex,
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.rejected
@@ -161,22 +161,21 @@ async def test_missing_strict_parameters(query_test_agent):
 @pytest.mark.asyncio
 async def test_optional_parameters(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {
-                    "kind": "data",
-                    "data": {
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(
+                    data={
                         "entrypoint": {
                             "id": "optional_parameters",
                             "parameters": {"test_parameter": 1},
                         }
-                    },
-                },
+                    }
+                ),
             ],
-            "messageId": str(uuid4()),
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.completed
@@ -185,14 +184,14 @@ async def test_optional_parameters(query_test_agent):
 @pytest.mark.asyncio
 async def test_missing_optional_parameters(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {"kind": "data", "data": {"entrypoint": {"id": "optional_parameters"}}},
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(data={"entrypoint": {"id": "optional_parameters"}}),
             ],
-            "messageId": str(uuid4()),
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.completed
@@ -201,22 +200,23 @@ async def test_missing_optional_parameters(query_test_agent):
 @pytest.mark.asyncio
 async def test_bad_parameters(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {
-                    "kind": "data",
-                    "data": {
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(
+                    data={
                         "entrypoint": {
                             "id": "strict_parameters",
-                            "parameters": {"test_parameter": "this is not an integer!"},
+                            "pparameters": {
+                                "test_parameter": "this is not an integer!"
+                            },
                         }
-                    },
-                },
+                    }
+                ),
             ],
-            "messageId": uuid4().hex,
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.rejected
@@ -225,14 +225,14 @@ async def test_bad_parameters(query_test_agent):
 @pytest.mark.asyncio
 async def test_bad_entrypoint(query_test_agent):
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {"kind": "data", "data": {"entrypoint": {"id": "this_is_not_real"}}},
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(data={"entrypoint": {"id": "this_is_not_real"}}),
             ],
-            "messageId": uuid4().hex,
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.rejected
@@ -276,29 +276,22 @@ async def test_server_agent_card(agent_httpx_client):
     }
 
 
-async def run_and_explode(
-    self,
-    context: ResponseContext,
-    request: str,
-    entrypoint: str,
-    params: Optional[BaseModel],
-):
-    raise ValueError("Rut roh!")
-
-
 @pytest.mark.asyncio
 async def test_server(agent, query_test_agent):
-    agent.run = types.MethodType(run_and_explode, agent)
+    async def explode(*args, **kwargs):
+        raise ValueError("Rut roh!")
+
+    agent.run = types.MethodType(explode, agent)
 
     messages = await query_test_agent(
-        {
-            "role": "user",
-            "parts": [
-                {"kind": "text", "text": "Do something for me"},
-                {"kind": "data", "data": {"entrypoint": {"id": "no_parameters"}}},
+        Message(
+            message_id="message-1",
+            role="user",
+            parts=[
+                TextPart(text="Do something for me"),
+                DataPart(data={"entrypoint": {"id": "no_parameters"}}),
             ],
-            "messageId": str(uuid4()),
-        }
+        )
     )
 
     assert messages[-1].root.result.status.state == TaskState.failed
