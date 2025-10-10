@@ -176,12 +176,6 @@ async def test_executor(execute):
         TaskStatusUpdateEvent(
             context_id="context-1",
             final=False,
-            status=TaskStatus(state=TaskState.submitted),
-            task_id="task-1",
-        ),
-        TaskStatusUpdateEvent(
-            context_id="context-1",
-            final=False,
             status=TaskStatus(state=TaskState.working),
             task_id="task-1",
         ),
@@ -220,7 +214,7 @@ async def test_executor(execute):
 async def test_submit_direct_response_with_data(execute):
     events = await execute(DirectResponse("hello", data={"name": "barb"}))
 
-    assert events[3].status.message.parts == [
+    assert events[2].status.message.parts == [
         Part(
             root=TextPart(metadata={"ichatbio_type": "direct_response"}, text="hello")
         ),
@@ -237,7 +231,7 @@ async def test_submit_direct_response_with_data(execute):
 async def test_submit_begin_process(execute):
     events = await execute(ProcessBeginResponse("thinking"))
 
-    assert events[3].status.message.parts == [
+    assert events[2].status.message.parts == [
         Part(
             root=TextPart(
                 kind="text",
@@ -252,7 +246,7 @@ async def test_submit_begin_process(execute):
 async def test_submit_process_log(execute):
     events = await execute(ProcessLogResponse("doing stuff"))
 
-    assert events[3].status.message.parts == [
+    assert events[2].status.message.parts == [
         Part(
             root=TextPart(
                 kind="text",
@@ -274,7 +268,7 @@ async def test_submit_artifact_with_online_content(execute):
         )
     )
 
-    assert events[3].status.message.parts == [
+    assert events[2].status.message.parts == [
         Part(
             root=FilePart(
                 file=FileWithUri(
@@ -310,7 +304,7 @@ async def test_submit_artifact_with_offline_content(execute):
         )
     )
 
-    assert events[3].status.message.parts == [
+    assert events[2].status.message.parts == [
         Part(
             root=FilePart(
                 file=FileWithBytes(
@@ -341,7 +335,7 @@ async def test_receive_artifact_ack(execute, executor):
 
     async def work():
         nonlocal goodie_box
-        await channel.receive_artifact()
+        await channel.receive()
         goodie_box = [goodie]
         await channel.submit(AgentFinished())
 

@@ -151,11 +151,9 @@ class IChatBioAgentExecutor(AgentExecutor):
                 case _:
                     raise ValueError("Failed to resume task: missing expected metadata")
         else:
+            # Start a new task
             task = a2a.utils.new_task(context.message)
             await event_queue.enqueue_event(task)
-
-            # Start a new task
-            await updater.submit()
 
             # Process the request
             try:
