@@ -59,9 +59,9 @@ class MockExecutor(IChatBioAgentExecutor):
         try:
             for message in self._agent_messages:
                 await response_channel.submit(message)
-            await response_channel.message_box.put(AgentFinished())
+            await response_channel.submit(AgentFinished())
         except Exception as e:
-            await response_channel.message_box.put(AgentCrashed(e))
+            await response_channel.submit(AgentCrashed(e))
 
 
 def read_events(event_queue):

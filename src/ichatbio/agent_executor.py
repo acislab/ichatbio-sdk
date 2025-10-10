@@ -185,9 +185,7 @@ class IChatBioAgentExecutor(AgentExecutor):
 
         # Consume agent response messages
         while True:
-            icb_message = await response_channel.message_box.get()
-
-            try:
+            async with response_channel.receive() as icb_message:
                 match icb_message:
                     case AgentFinished():
                         await updater.complete()
@@ -246,8 +244,6 @@ class IChatBioAgentExecutor(AgentExecutor):
                         raise ValueError(
                             f'Unexpected response message type "{type(icb_message)}": {icb_message}'
                         )
-            finally:
-                response_channel.message_box.task_done()
 
     async def parse_request(self, request: Message):
         match request:
@@ -316,14 +312,14 @@ class IChatBioAgentExecutor(AgentExecutor):
             await self.agent.run(
                 response_context, request.text, request.entrypoint, request.arguments
             )
-            await response_channel.message_box.put(AgentFinished())
+            await response_channel.submit(AgentFinished())
 
         # If the agent failed to process the request, mark the task as "failed"
         except Exception as e:
             logging.error(
                 f"An exception was raised while handling request {request}", exc_info=e
             )
-            await response_channel.message_box.put(AgentCrashed(e))
+            await response_channel.submit(AgentCrashed(e))
 
     @override
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:

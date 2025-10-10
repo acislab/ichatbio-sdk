@@ -42,19 +42,15 @@ def run(channel):
 
         messages = []
         while True:
-            message = await channel.message_box.get()
-            channel.message_box.task_done()
-
-            if message is done:
-                break
+            async with channel.receive() as message:
+                if message is done:
+                    break
+                messages.append(message)
 
             if isinstance(message, ArtifactResponse):
                 await channel.submit(ArtifactAck(None))
 
-            messages.append(message)
-
         await task
-        assert channel.message_box.empty()
 
         return messages
 

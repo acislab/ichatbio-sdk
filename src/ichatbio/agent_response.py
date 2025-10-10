@@ -51,21 +51,27 @@ class ArtifactAck:
 
 class ResponseChannel:
     def __init__(self):
-        self.message_box: asyncio.Queue[ResponseMessage] = asyncio.Queue(maxsize=1)
+        self._message_box: asyncio.Queue[ResponseMessage] = asyncio.Queue(maxsize=1)
 
     async def submit(self, message: ResponseMessage):
-        await self.message_box.put(message)
-        await self.message_box.join()
+        await self._message_box.put(message)
+        await self._message_box.join()
+
+
+    @asynccontextmanager
+    async def receive(self):
+        message = await self._message_box.get()
+        yield message
+        self._message_box.task_done()
+
 
     async def receive_artifact(self) -> Artifact:
-        message = await self.message_box.get()
-        self.message_box.task_done()
-
-        match message:
-            case ArtifactAck(artifact=artifact):
-                return artifact
-            case _:
-                raise ValueError("Received unexpected message type")
+        async with self.receive() as message:
+            match message:
+                case ArtifactAck(artifact=artifact):
+                    return artifact
+                case _:
+                    raise ValueError("Received unexpected message type")
 
 
 class IChatBioAgentProcess:
