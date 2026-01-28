@@ -192,16 +192,12 @@ async def test_executor(execute):
                     task_id="task-1",
                     role=Role.agent,
                     metadata={
-                        "ichatbio": {"sdk": importlib.metadata.version("ichatbio-sdk")}
+                        "ichatbio": {
+                            "sdk": importlib.metadata.version("ichatbio-sdk"),
+                            "message_type": "direct_response",
+                        }
                     },
-                    parts=[
-                        Part(
-                            root=TextPart(
-                                metadata={"ichatbio_type": "direct_response"},
-                                text="hello",
-                            )
-                        )
-                    ],
+                    parts=[Part(root=TextPart(text="hello"))],
                 ),
                 state=TaskState.working,
             ),
@@ -220,16 +216,11 @@ async def test_executor(execute):
 async def test_submit_direct_response_with_data(execute):
     events = await execute(DirectResponse("hello", data={"name": "barb"}))
 
-    assert events[2].status.message.parts == [
-        Part(
-            root=TextPart(metadata={"ichatbio_type": "direct_response"}, text="hello")
-        ),
-        Part(
-            root=DataPart(
-                metadata={"ichatbio_type": "direct_response"},
-                data={"name": "barb"},
-            )
-        ),
+    message = events[2].status.message
+    assert message.metadata["ichatbio"]["message_type"] == "direct_response"
+    assert message.parts == [
+        Part(root=TextPart(text="hello")),
+        Part(root=DataPart(data={"name": "barb"})),
     ]
 
 
@@ -237,30 +228,18 @@ async def test_submit_direct_response_with_data(execute):
 async def test_submit_begin_process(execute):
     events = await execute(ProcessBeginResponse("thinking"))
 
-    assert events[2].status.message.parts == [
-        Part(
-            root=TextPart(
-                kind="text",
-                metadata={"ichatbio_type": "begin_process_response"},
-                text="thinking",
-            )
-        )
-    ]
+    message = events[2].status.message
+    assert message.metadata["ichatbio"]["message_type"] == "begin_process_response"
+    assert message.parts == [Part(root=TextPart(text="thinking"))]
 
 
 @pytest.mark.asyncio
 async def test_submit_process_log(execute):
     events = await execute(ProcessLogResponse("doing stuff"))
 
-    assert events[2].status.message.parts == [
-        Part(
-            root=TextPart(
-                kind="text",
-                metadata={"ichatbio_type": "process_log_response"},
-                text="doing stuff",
-            )
-        )
-    ]
+    message = events[2].status.message
+    assert message.metadata["ichatbio"]["message_type"] == "process_log_response"
+    assert message.parts == [Part(root=TextPart(kind="text", text="doing stuff"))]
 
 
 @pytest.mark.asyncio
@@ -274,15 +253,16 @@ async def test_submit_artifact_with_online_content(execute):
         )
     )
 
-    assert events[2].status.message.parts == [
+    message = events[2].status.message
+    assert message.metadata["ichatbio"]["message_type"] == "artifact_response"
+    assert message.parts == [
         Part(
             root=FilePart(
                 file=FileWithUri(
                     mimeType="text/plain",
                     name="test artifact",
                     uri="https://test.artifact",
-                ),
-                metadata={"ichatbio_type": "artifact_response"},
+                )
             )
         ),
         Part(
@@ -290,8 +270,7 @@ async def test_submit_artifact_with_online_content(execute):
                 data={
                     "uris": ["https://test.artifact"],
                     "metadata": {"source": "nowhere"},
-                },
-                metadata={"ichatbio_type": "artifact_response"},
+                }
             )
         ),
     ]
@@ -310,23 +289,19 @@ async def test_submit_artifact_with_offline_content(execute):
         )
     )
 
-    assert events[2].status.message.parts == [
+    message = events[2].status.message
+    assert message.metadata["ichatbio"]["message_type"] == "artifact_response"
+    assert message.parts == [
         Part(
             root=FilePart(
                 file=FileWithBytes(
                     mimeType="text/plain",
                     name="test artifact",
                     bytes=base64.b64encode(b"hello"),
-                ),
-                metadata={"ichatbio_type": "artifact_response"},
+                )
             )
         ),
-        Part(
-            root=DataPart(
-                data={"metadata": {"source": "nowhere"}, "uris": []},
-                metadata={"ichatbio_type": "artifact_response"},
-            )
-        ),
+        Part(root=DataPart(data={"metadata": {"source": "nowhere"}, "uris": []})),
     ]
 
     assert events[-1].status.state == TaskState.input_required

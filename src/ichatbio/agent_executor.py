@@ -63,7 +63,10 @@ class SuspendedTask:
 
 
 def new_agent_response_message(
-    parts: list[TextPart | FilePart | DataPart], context_id: str, task_id: str
+    kind: str,
+    parts: list[TextPart | FilePart | DataPart],
+    context_id: str,
+    task_id: str
 ):
     message = new_agent_parts_message(
         [Part(root=p) for p in parts],
@@ -72,7 +75,8 @@ def new_agent_response_message(
     )
     message.metadata = {
         "ichatbio": {
-            "sdk": importlib.metadata.version("ichatbio-sdk")
+            "sdk": importlib.metadata.version("ichatbio-sdk"),
+            "message_type": kind
         }
     }
     return message
@@ -85,8 +89,6 @@ def make_artifact_parts(
     mimetype: str,
     uris: list[str],
 ) -> list[TextPart | FilePart | DataPart]:
-    metadata = {"ichatbio_type": "artifact_response"}
-
     data = {
         "metadata": artifact_metadata,
         "uris": uris if uris else [],
@@ -104,23 +106,19 @@ def make_artifact_parts(
         raise ValueError("Artifact message must have content or at least one URI")
 
     return [
-        FilePart(file=file, metadata=metadata),
-        DataPart(data=data, metadata=metadata),
+        FilePart(file=file),
+        DataPart(data=data),
     ]
 
 
-def make_text_data_parts(kind: str, text: str, data: dict):
-    metadata = {
-        "ichatbio_type": kind,
-    }
-
+def make_text_data_parts(text: Optional[str], data: Optional[dict]):
     if data:
         return [
-            TextPart(text=text, metadata=metadata),
-            DataPart(data=data, metadata=metadata),
+            TextPart(text=text),
+            DataPart(data=data),
         ]
     else:
-        return [TextPart(text=text, metadata=metadata)]
+        return [TextPart(text=text)]
 
 
 class IChatBioAgentExecutor(AgentExecutor):
@@ -147,14 +145,14 @@ class IChatBioAgentExecutor(AgentExecutor):
         context: RequestContext,
         event_queue: EventQueue,
     ) -> None:
-        updater = TaskUpdater(event_queue, context.task_id, context.context_id)
-
         if context.current_task:
+            logging.info(f"Resuming execution of suspended task {context.current_task.id}")
+
             # Resume existing task if it was waiting
             match self.suspended_tasks.get(context.task_id):
                 case SuspendedTask(async_task=agent_task, response_channel=response_channel):
                     task = context.current_task
-                    logging.info(f"Resuming execution of suspended task")
+                    updater = TaskUpdater(event_queue, task.id, context.context_id)
 
                     match context.message:
                         case Message(parts=[Part(root=DataPart(data={"artifact": artifact_data}))]):
@@ -168,6 +166,7 @@ class IChatBioAgentExecutor(AgentExecutor):
             # Start a new task
             task = a2a.utils.new_task(context.message)
             await event_queue.enqueue_event(task)
+            updater = TaskUpdater(event_queue, task.id, context.context_id)
 
             # Process the request
             try:
@@ -221,13 +220,15 @@ class IChatBioAgentExecutor(AgentExecutor):
                     ):
                         await updater.start_work(
                             new_agent_response_message(
-                                make_text_data_parts(kind, text, data),
+                                kind,
+                                make_text_data_parts(text, data),
                                 context.context_id,
                                 context.task_id,
                             )
                         )
 
                     case ArtifactResponse(
+                        kind=kind,
                         mimetype=mimetype,
                         description=description,
                         uris=uris,
@@ -236,6 +237,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                     ):
                         await updater.requires_input(
                             new_agent_response_message(
+                                kind,
                                 make_artifact_parts(
                                     artifact_metadata,
                                     content,
