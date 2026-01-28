@@ -1,3 +1,4 @@
+import logging
 import types
 from typing import Optional
 from uuid import uuid4
@@ -368,3 +369,28 @@ async def test_artifact_ack(query_test_agent):
 
     last_message = messages[-1].root.result
     assert last_message.status.state == TaskState.completed
+
+
+@pytest.mark.skip("Too heavy to run all the time")
+@pytest.mark.asyncio
+async def test_server_with_lots_of_requests(query_test_agent):
+    for i in range(1024):
+        logging.info(f"Request {i}")
+        messages = await query_test_agent(
+            Message(
+                message_id="message-1",
+                role="user",
+                parts=[
+                    TextPart(text="Do something for me"),
+                    DataPart(data={"entrypoint": {"id": "no_parameters"}}),
+                ],
+            )
+        )
+
+        assert messages[0].root.result.status.state == TaskState.submitted
+
+        assert len(messages) >= 3
+        for m in messages[1:-1]:
+            assert m.root.result.status.state == TaskState.working
+
+        assert messages[-1].root.result.status.state == TaskState.completed
