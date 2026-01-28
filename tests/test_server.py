@@ -308,8 +308,8 @@ async def test_server_agent_card(agent_httpx_client):
 
 
 @pytest.mark.asyncio
-async def test_server(agent, query_test_agent):
-    async def explode():
+async def test_server_error(agent, query_test_agent):
+    async def explode(*vargs, **kwargs):
         raise ValueError("Rut roh!")
 
     agent.run = types.MethodType(explode, agent)
