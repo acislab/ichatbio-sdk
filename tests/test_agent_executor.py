@@ -61,6 +61,8 @@ class MockExecutor(IChatBioAgentExecutor):
             for message in self._agent_messages:
                 await response_channel.submit(message)
             await response_channel.submit(AgentFinished())
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             await response_channel.submit(AgentCrashed(e))
 

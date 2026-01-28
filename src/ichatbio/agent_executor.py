@@ -134,6 +134,13 @@ class IChatBioAgentExecutor(AgentExecutor):
         self.agent = agent
         self.suspended_tasks: dict[str, SuspendedTask] = {}
 
+    @staticmethod
+    async def wait(task):
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
     @override
     async def execute(
         self,
@@ -204,6 +211,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                                 context.task_id,
                             )
                         )
+                        await self.wait(agent_task)
                         raise exc
 
                     case (
@@ -242,10 +250,12 @@ class IChatBioAgentExecutor(AgentExecutor):
                         )
 
                         self.suspended_tasks[task.id] = SuspendedTask(agent_task, response_channel)
+                        agent_task.add_done_callback(lambda t: self.suspended_tasks.pop(task.id) if self.suspended_tasks.get(task.id) == t else ...)
                         break
 
                     case _:
                         agent_task.cancel()
+                        await self.wait(agent_task)
                         raise ValueError(
                             f'Unexpected response message type "{type(icb_message)}": {icb_message}'
                         )
@@ -318,6 +328,9 @@ class IChatBioAgentExecutor(AgentExecutor):
                 response_context, request.text, request.entrypoint, request.arguments
             )
             await response_channel.submit(AgentFinished())
+
+        except asyncio.CancelledError:
+            raise
 
         # If the agent failed to process the request, mark the task as "failed"
         except Exception as e:
