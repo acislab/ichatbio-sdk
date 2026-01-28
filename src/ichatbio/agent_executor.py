@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import importlib.metadata
 import logging
 import traceback
 from dataclasses import dataclass
@@ -64,11 +65,17 @@ class SuspendedTask:
 def new_agent_response_message(
     parts: list[TextPart | FilePart | DataPart], context_id: str, task_id: str
 ):
-    return new_agent_parts_message(
+    message = new_agent_parts_message(
         [Part(root=p) for p in parts],
         context_id,
         task_id,
     )
+    message.metadata = {
+        "ichatbio": {
+            "sdk": importlib.metadata.version("ichatbio-sdk")
+        }
+    }
+    return message
 
 
 def make_artifact_parts(

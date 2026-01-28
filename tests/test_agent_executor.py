@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import importlib.metadata
 from typing import Iterable, override
 
 import a2a.server.events
@@ -186,6 +187,11 @@ async def test_executor(execute):
                 message=Message(
                     context_id="context-1",
                     message_id="message-1",
+                    task_id="task-1",
+                    role=Role.agent,
+                    metadata={
+                        "ichatbio": {"sdk": importlib.metadata.version("ichatbio-sdk")}
+                    },
                     parts=[
                         Part(
                             root=TextPart(
@@ -194,8 +200,6 @@ async def test_executor(execute):
                             )
                         )
                     ],
-                    role=Role.agent,
-                    task_id="task-1",
                 ),
                 state=TaskState.working,
             ),
