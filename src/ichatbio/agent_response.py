@@ -186,9 +186,9 @@ class ResponseContext:
         :param metadata: Optional structured information to contextualize the process.
         :return:
 
-        Processes should be started using a ``with`` statement::
+        Processes should be started using an ``async with`` statement::
 
-            with context.begin_process("Searching iDigBio") as process:
+            async with context.begin_process("Searching iDigBio") as process:
                 # Some IDEs don't infer what ``process`` is, so provide a hint:
                 process: IChatBioAgentProcess
 
