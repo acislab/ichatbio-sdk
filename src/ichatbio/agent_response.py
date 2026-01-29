@@ -123,17 +123,20 @@ class IChatBioAgentProcess:
         uris: Optional[list[str]] = None,
         content: Optional[bytes] = None,
         metadata: Optional[dict] = None,
-    ):
+    ) -> Artifact:
         """
-        Returns an identifiable digital object to iChatBio. If content is not included, a resolvable URI must be
+        Sends a request to iChatBio to register a new artifact. If content is not included, a resolvable URI must be
         specified. If no resolvable URIs are provided, iChatBio will store the content locally and use its SHA-256 hash
         as its identifier.
+
+        Waits for iChatBio to acknowledge the new artifact.
 
         :param mimetype: The MIME type of the artifact, e.g. ``text/plain``, ``application/json``, ``image/png``.
         :param description: A brief description of the artifact. Descriptions over ~50 characters may be abbreviated.
         :param uris: Unique identifiers for the artifact. If URIs are resolvable, content can be omitted.
         :param content: The raw content of the artifact.
         :param metadata: Anything related to the artifact, e.g. provenance, schema, landing page URLs, related artifact URIs.
+        :returns: Artifact metadata received by iChatBio, which may include new URIs to identify the artifact and locate its content.
         """
         await self._submit_if_active(
             ArtifactResponse(mimetype, description, uris, content, metadata)
