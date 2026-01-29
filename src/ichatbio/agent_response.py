@@ -186,12 +186,15 @@ class ResponseContext:
         :param metadata: Optional structured information to contextualize the process.
         :return:
 
-        Processes must be started using a ``with`` statement:
+        Processes should be started using a ``with`` statement::
 
-            with context.process("Searching iDigBio") as process:
-                process.log("Generating search parameters")
-                # Agent actions
-                process.create_artifact()
+            with context.begin_process("Searching iDigBio") as process:
+                # Some IDEs don't infer what ``process`` is, so provide a hint:
+                process: IChatBioAgentProcess
+
+                # Agent actions, e.g.:
+                await process.log("Generating search parameters")
+                await process.create_artifact()
 
         """
         process = IChatBioAgentProcess(self._channel, summary, metadata)
