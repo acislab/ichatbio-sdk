@@ -4,7 +4,7 @@ import importlib.metadata
 import logging
 import traceback
 from dataclasses import dataclass
-from typing import Optional, override
+from typing import Optional, override, Type
 
 import a2a.utils
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -15,7 +15,7 @@ from a2a.types import Part, FilePart, DataPart, FileWithUri, FileWithBytes
 from a2a.types import UnsupportedOperationError, TextPart
 from a2a.utils import new_agent_parts_message, new_agent_text_message
 from a2a.utils.errors import ServerError
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
 import ichatbio.types
 from ichatbio.agent import IChatBioAgent
@@ -25,8 +25,7 @@ from ichatbio.agent_response import (
     ArtifactResponse,
     ProcessLogResponse,
     ProcessBeginResponse,
-    DirectResponse, ArtifactAck,
-)
+    DirectResponse, ArtifactAck, DirectResponseAck, )
 
 
 class BadRequest(ValueError):
@@ -66,7 +65,8 @@ def new_agent_response_message(
     kind: str,
     parts: list[TextPart | FilePart | DataPart],
     context_id: str,
-    task_id: str
+    task_id: str,
+    metadata: Optional[dict] = None
 ):
     message = new_agent_parts_message(
         [Part(root=p) for p in parts],
@@ -77,7 +77,7 @@ def new_agent_response_message(
         "ichatbio": {
             "sdk": importlib.metadata.version("ichatbio-sdk"),
             "message_type": kind
-        }
+        } | (metadata or {})
     }
     return message
 
@@ -155,11 +155,31 @@ class IChatBioAgentExecutor(AgentExecutor):
                     updater = TaskUpdater(event_queue, task.id, context.context_id)
 
                     match context.message:
-                        case Message(parts=[Part(root=DataPart(data={"artifact": artifact_data}))]):
+                        case Message(parts=[
+                            Part(root=DataPart(data={
+                                "type": "query_response",
+                                "explanation": explanation,
+                                "model_response": value,
+                                "complete": complete
+                            }))
+                        ]):
+                            await response_channel.submit(DirectResponseAck(
+                                explanation=explanation,
+                                value=value,
+                                complete=complete
+                            ))
+
+                        case Message(parts=[
+                            Part(root=DataPart(data={
+                                "type": "artifact_ack",
+                                "artifact": artifact_data
+                            }))
+                        ]):
                             artifact = ichatbio.types.Artifact(**artifact_data)
                             await response_channel.submit(ArtifactAck(artifact))
+
                         case _:
-                            raise ValueError(f"Failed to resume task: invalid artifact data")
+                            raise ValueError(f"Failed to resume task: unrecognized response format")
                 case _:
                     raise ValueError("Failed to resume task: missing expected metadata")
         else:
@@ -195,6 +215,7 @@ class IChatBioAgentExecutor(AgentExecutor):
             agent_task = asyncio.create_task(self.run_agent(response_channel, request))
 
         # Consume agent response messages
+        wait = False
         while True:
             async with response_channel.receive() as icb_message:
                 match icb_message:
@@ -214,7 +235,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                         raise exc
 
                     case (
-                        DirectResponse(kind=kind, text=text, data=data)
+                        DirectResponse(kind=kind, text=text, data=data, response_model=None)
                         | ProcessBeginResponse(kind=kind, summary=text, data=data)
                         | ProcessLogResponse(kind=kind, text=text, data=data)
                     ):
@@ -226,6 +247,20 @@ class IChatBioAgentExecutor(AgentExecutor):
                                 context.task_id,
                             )
                         )
+
+                    case DirectResponse(kind=kind, text=text, data=data, response_model=response_model):
+                        response_model: Type[BaseModel]
+                        await updater.requires_input(
+                            new_agent_response_message(
+                                kind,
+                                make_text_data_parts(text, data),
+                                context.context_id,
+                                context.task_id,
+                                metadata={"response_model": response_model.model_json_schema()}
+                            ),
+                            final=True
+                        )
+                        wait = True
 
                     case ArtifactResponse(
                         kind=kind,
@@ -250,10 +285,7 @@ class IChatBioAgentExecutor(AgentExecutor):
                             ),
                             final=True
                         )
-
-                        self.suspended_tasks[task.id] = SuspendedTask(agent_task, response_channel)
-                        agent_task.add_done_callback(lambda t: self.suspended_tasks.pop(task.id) if self.suspended_tasks.get(task.id) == t else ...)
-                        break
+                        wait = True
 
                     case _:
                         agent_task.cancel()
@@ -261,6 +293,13 @@ class IChatBioAgentExecutor(AgentExecutor):
                         raise ValueError(
                             f'Unexpected response message type "{type(icb_message)}": {icb_message}'
                         )
+
+                if wait:
+                    self.suspended_tasks[task.id] = SuspendedTask(agent_task, response_channel)
+                    agent_task.add_done_callback(
+                        lambda t: self.suspended_tasks.pop(task.id) if self.suspended_tasks.get(task.id) == t else ...
+                    )
+                    break
 
     async def parse_request(self, request: Message):
         match request:

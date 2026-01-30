@@ -23,6 +23,7 @@ from a2a.types import (
     Role,
     Task,
 )
+from pydantic import BaseModel
 
 import ichatbio.types
 from ichatbio.agent_executor import (
@@ -38,6 +39,7 @@ from ichatbio.agent_response import (
     ProcessBeginResponse,
     ProcessLogResponse,
     ArtifactResponse,
+    DirectResponseAck,
 )
 from ichatbio.agent_response import ResponseMessage
 
@@ -210,6 +212,126 @@ async def test_executor(execute):
             task_id="task-1",
         ),
     ]
+
+
+@pytest.mark.asyncio
+async def test_ask_question(execute):
+    class ResponseModel(BaseModel):
+        answer: int
+
+    events = await execute(
+        DirectResponse(text="What's the answer?", response_model=ResponseModel)
+    )
+
+    message = events[2].status.message
+    assert message.metadata["ichatbio"]["response_model"] == {
+        "properties": {"answer": {"title": "Answer", "type": "integer"}},
+        "required": ["answer"],
+        "title": "ResponseModel",
+        "type": "object",
+    }
+    assert message.parts == [
+        Part(root=TextPart(metadata=None, text="What's the answer?"))
+    ]
+
+    assert events[-1].status.state == TaskState.input_required
+
+
+@pytest.mark.asyncio
+async def test_answer_question(execute, executor):
+    class ResponseModel(BaseModel):
+        answer: int
+
+    channel = ResponseChannel()
+    response_box = [None]
+
+    async def work():
+        nonlocal response_box
+        async with channel.receive() as response:
+            response_box = [response]
+        await channel.submit(AgentFinished())
+
+    agent_task = asyncio.create_task(work())
+
+    executor.suspended_tasks["task-1"] = SuspendedTask(agent_task, channel)
+
+    assert response_box[0] is None
+
+    events = await execute(
+        DirectResponse("Got it!"),
+        request=Message(
+            message_id="message-2",
+            task_id="task-1",
+            role="user",
+            parts=[
+                DataPart(
+                    data={
+                        "type": "query_response",
+                        "explanation": "I ran the numbers",
+                        "model_response": ResponseModel(answer=99).model_dump(),
+                        "complete": True,
+                    }
+                ),
+            ],
+        ),
+        task=Task(
+            context_id="context-1",
+            id="task-1",
+            status=TaskStatus(state=TaskState.input_required),
+        ),
+    )
+
+    assert response_box[0] == DirectResponseAck(
+        explanation="I ran the numbers", value={"answer": 99}, complete=True
+    )
+    assert events[-1].status.state == TaskState.completed
+
+
+@pytest.mark.asyncio
+async def test_refuse_to_answer(execute, executor):
+    channel = ResponseChannel()
+    response_box = [None]
+
+    async def work():
+        nonlocal response_box
+        async with channel.receive() as response:
+            response_box = [response]
+        await channel.submit(AgentFinished())
+
+    agent_task = asyncio.create_task(work())
+
+    executor.suspended_tasks["task-1"] = SuspendedTask(agent_task, channel)
+
+    assert response_box[0] is None
+
+    events = await execute(
+        DirectResponse("Got it!"),
+        request=Message(
+            message_id="message-2",
+            task_id="task-1",
+            role="user",
+            parts=[
+                DataPart(
+                    data={
+                        "type": "query_response",
+                        "explanation": "I give up :(",
+                        "model_response": None,
+                        "complete": False,
+                    }
+                ),
+            ],
+        ),
+        task=Task(
+            context_id="context-1",
+            id="task-1",
+            status=TaskStatus(state=TaskState.input_required),
+        ),
+    )
+
+    assert response_box[0] == DirectResponseAck(
+        explanation="I give up :(", value=None, complete=False
+    )
+    assert events[-1].status.state == TaskState.completed
 
 
 @pytest.mark.asyncio

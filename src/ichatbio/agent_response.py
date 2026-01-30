@@ -2,8 +2,11 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from dataclasses import dataclass
-from typing import Optional, Literal
+from typing import Optional, Literal, Type, Any
 from uuid import uuid4
+
+from pydantic import BaseModel, ValidationError
+from typing_extensions import TypeVar
 
 from ichatbio.types import Artifact
 
@@ -12,6 +15,7 @@ from ichatbio.types import Artifact
 class DirectResponse:
     text: str
     data: Optional[dict] = None
+    response_model: Optional[Type[BaseModel]] = None
     kind: Literal["direct_response"] = "direct_response"
 
 
@@ -47,6 +51,24 @@ ResponseMessage = (
 @dataclass
 class ArtifactAck:
     artifact: Artifact
+
+
+@dataclass
+class NoResponse:
+    explanation: str
+
+
+@dataclass
+class ModelResponse:
+    explanation: str
+    value: Any
+
+
+@dataclass
+class DirectResponseAck:
+    explanation: str
+    value: Any
+    complete: bool
 
 
 class ResponseChannel:
@@ -152,7 +174,7 @@ class IChatBioAgentProcess:
                 raise ValueError("Received unexpected message type")
 
 
-
+TModel = TypeVar("TModel", bound=BaseModel)
 
 class ResponseContext:
     """
@@ -162,21 +184,43 @@ class ResponseContext:
     def __init__(self, channel: ResponseChannel):
         self._channel = channel
 
-    async def reply(self, text: Optional[str], data: Optional[dict] = None):
+    async def reply(self, text: Optional[str], data: Optional[dict] = None, response_model: TModel = None) -> ModelResponse | NoResponse:
         """
-        Responds directly to the iChatBio assistant, not the user. Text messages can be used to:
+        Responds directly to iChatBio, not the user. Text messages can be used to:
         - Request more information
-        - Refuse the assistant's request
+        - Refuse iChatBio's request
         - Provide context for process and artifact messages
         - Provide advice on what to do next
         - etc.
 
-        Open a process to instead respond with process logs or persistent artifacts.
-        :param text: A natural language response to the assistant's request.
+        :param text: A natural language response to iChatBio's request.
         :param data: Structured information related to the message.
+        :param response_model: If provided, iChatBio will send a response that tries to follow this model.
+        :raises ValidationError: If ``response_model`` is provided and iChatBio's response fails validation.
+        :returns: If ``response_model`` is provided, iChatBio's response is returned. Otherwise, returns ``None``.
         """
         logging.info(f'Sending reply "{text}" with data {data}')
-        await self._channel.submit(DirectResponse(text, data))
+        await self._channel.submit(DirectResponse(text, data, response_model))
+
+        if response_model is None:
+            return
+
+        logging.info("Waiting for iChatBio's response")
+        async with self._channel.receive() as m:
+            message = m
+
+        match message:
+            case DirectResponseAck(explanation=explanation, complete=False):
+                return NoResponse(explanation)
+            case DirectResponseAck(explanation=explanation, value=unvalidated_response, complete=True):
+                try:
+                    return ModelResponse(explanation, response_model.model_validate(unvalidated_response))
+                except ValidationError as e:
+                    logging.warning("Response from iChatBio does not satisfy model constraints", e)
+                    raise
+            case _:
+                raise ValueError("Received unexpected message type")
+
 
     @asynccontextmanager
     async def begin_process(
