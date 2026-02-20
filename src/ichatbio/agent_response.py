@@ -184,7 +184,7 @@ class ResponseContext:
     def __init__(self, channel: ResponseChannel):
         self._channel = channel
 
-    async def reply(self, text: Optional[str], data: Optional[dict] = None, response_model: TModel = None) -> ModelResponse | NoResponse:
+    async def reply(self, text: Optional[str], data: Optional[dict] = None, response_model: Type[TModel] = None) -> ModelResponse | NoResponse:
         """
         Responds directly to iChatBio, not the user. Text messages can be used to:
         - Request more information

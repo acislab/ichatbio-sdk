@@ -2,6 +2,7 @@ import asyncio
 from typing import Coroutine
 
 import pytest
+from pydantic import BaseModel
 
 from ichatbio.agent_response import (
     ResponseChannel,
@@ -13,6 +14,7 @@ from ichatbio.agent_response import (
     IChatBioAgentProcess,
     ResponseMessage,
     ArtifactAck,
+    DirectResponseAck,
 )
 
 CONTEXT_ID = "1234"
@@ -31,7 +33,7 @@ def context(channel):
 
 @pytest.fixture
 def run(channel):
-    async def do_work(work: Coroutine) -> list[ResponseMessage]:
+    async def do_work(work: Coroutine, followup=None) -> list[ResponseMessage]:
         done = object()
 
         async def work_and_finish():
@@ -47,8 +49,16 @@ def run(channel):
                     break
                 messages.append(message)
 
-            if isinstance(message, ArtifactResponse):
-                await channel.submit(ArtifactAck(None))
+            match message:
+                case ArtifactResponse():
+                    await channel.submit(ArtifactAck(None))
+                case DirectResponse(response_model=response_model):
+                    if response_model is not None:
+                        await channel.submit(
+                            DirectResponseAck(
+                                explanation="test value", value=followup, complete=True
+                            )
+                        )
 
         await task
 
@@ -67,6 +77,26 @@ async def test_submit_direct_response(run, context):
 async def test_submit_direct_response_with_data(run, context):
     messages = await run(context.reply("hi", data={1: 2}))
     assert messages == [DirectResponse(text="hi", data={1: 2})]
+
+
+@pytest.mark.asyncio
+async def test_submit_direct_response_with_question(run, context):
+    class TrueOrFalse(BaseModel):
+        answer: bool
+
+    answer_box = [None]
+
+    async def work():
+        nonlocal answer_box
+        response = await context.reply("hi", response_model=TrueOrFalse)
+        x = 100
+        answer_box[0] = response.value
+        pass
+
+    messages = await run(work(), followup=TrueOrFalse(answer=True))
+
+    assert messages == [DirectResponse(text="hi", response_model=TrueOrFalse)]
+    assert answer_box[0] == TrueOrFalse(answer=True)
 
 
 @pytest.mark.asyncio
