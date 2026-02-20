@@ -246,9 +246,8 @@ async def test_answer_question(execute, executor):
     response_box = [None]
 
     async def work():
-        nonlocal response_box
         async with channel.receive() as response:
-            response_box = [response]
+            response_box[0] = response
         await channel.submit(AgentFinished())
 
     agent_task = asyncio.create_task(work())
@@ -293,9 +292,8 @@ async def test_refuse_to_answer(execute, executor):
     response_box = [None]
 
     async def work():
-        nonlocal response_box
         async with channel.receive() as response:
-            response_box = [response]
+            response_box[0] = response
         await channel.submit(AgentFinished())
 
     agent_task = asyncio.create_task(work())
@@ -437,9 +435,8 @@ async def test_receive_artifact_ack(execute, executor):
     goodie_box = [None]
 
     async def work():
-        nonlocal goodie_box
         async with channel.receive():
-            goodie_box = [goodie]
+            goodie_box[0] = goodie
         await channel.submit(AgentFinished())
 
     agent_task = asyncio.create_task(work())
@@ -462,7 +459,9 @@ async def test_receive_artifact_ack(execute, executor):
             task_id="task-1",
             role="user",
             parts=[
-                DataPart(data={"artifact": artifact.model_dump()}),
+                DataPart(
+                    data={"type": "artifact_ack", "artifact": artifact.model_dump()}
+                ),
             ],
         ),
         task=Task(

@@ -87,11 +87,8 @@ async def test_submit_direct_response_with_question(run, context):
     answer_box = [None]
 
     async def work():
-        nonlocal answer_box
         response = await context.reply("hi", response_model=TrueOrFalse)
-        x = 100
         answer_box[0] = response.value
-        pass
 
     messages = await run(work(), followup=TrueOrFalse(answer=True))
 

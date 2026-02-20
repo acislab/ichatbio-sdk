@@ -362,7 +362,7 @@ async def test_artifact_ack(query_test_agent):
             task_id=task_id,
             role="user",
             parts=[
-                DataPart(data={"artifact": artifact}),
+                DataPart(data={"type": "artifact_ack", "artifact": artifact}),
             ],
         )
     )
