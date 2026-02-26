@@ -5,6 +5,7 @@ import uvicorn
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
+from a2a.types import AgentExtension
 from starlette.applications import Starlette
 
 from ichatbio.agent import IChatBioAgent
@@ -21,7 +22,14 @@ def convert_agent_card_to_a2a(card: AgentCard):
         icon_url=card.icon,
         version=card.version or "0",
         capabilities=a2a.types.AgentCapabilities(
-            streaming=True
+            streaming=True,
+            extensions=[
+                AgentExtension(
+                    description="Enables iChatBio-specific interactions",
+                    required=True,
+                    uri="https://github.com/acislab/ichatbio-sdk/a2a/v1"
+                )
+            ]
         ),
         defaultInputModes=["text/plain"],
         defaultOutputModes=["text/plain"],
