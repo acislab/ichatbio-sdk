@@ -33,7 +33,12 @@ class AgentCard(BaseModel):
     """The name used to identify the agent to iChatBio users."""
 
     description: str
-    """Describes the agent to both the iChatBio assistant and users."""
+    """Describes the agent to both the iChatBio assistant and users. Uses Markdown formatting."""
+
+    version: Optional[str] = None
+
+    documentation_url: Optional[str] = None
+    """URL to the agent's documentation, e.g., a GitHub repository."""
 
     icon: Optional[str] = None
     """URL for the image shown to iChatBio users to visually reference this agent."""
