@@ -1,2 +1,3 @@
-Extension URI: `https://github.com/acislab/ichatbio-sdk/a2a/v1`
+Extension URI: `https://ichatbio.org/a2a/v1`
 
+Defines iChatBio-specific message types.
