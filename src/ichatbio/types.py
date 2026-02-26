@@ -1,8 +1,8 @@
 import re
 from typing import Optional, Type, Annotated
 
-from annotated_types import MinLen
-from pydantic import BaseModel, AnyHttpUrl, StringConstraints, WithJsonSchema
+from pydantic import BaseModel, AnyHttpUrl, StringConstraints, WithJsonSchema, field_serializer
+from pydantic import Field
 
 IDString = Annotated[str, StringConstraints(min_length=2, pattern=r"^[a-zA-Z0-9_-]+$")]
 
@@ -23,6 +23,12 @@ class AgentEntrypoint(BaseModel):
     parameters: Optional[Type[BaseModel]] = None
     """Structured information that iChatBio must provide to use this entrypoint."""
 
+    @field_serializer("parameters")
+    def serialize_parameters(self, value: Optional[Type[BaseModel]]):
+        if value is None:
+            return None
+        return value.model_json_schema()
+
 
 class AgentCard(BaseModel):
     """
@@ -33,15 +39,20 @@ class AgentCard(BaseModel):
     """The name used to identify the agent to iChatBio users."""
 
     description: str
-    """Describes the agent to both the iChatBio assistant and users."""
+    """Describes the agent to both the iChatBio assistant and users. Uses Markdown formatting."""
+
+    version: Optional[str] = None
+
+    documentation_url: Optional[str] = None
+    """URL to the agent's documentation, e.g., a GitHub repository."""
 
     icon: Optional[str] = None
     """URL for the image shown to iChatBio users to visually reference this agent."""
 
-    url: Annotated[Optional[str], AnyHttpUrl] = None
+    url: Optional[AnyHttpUrl] = Field(None)
     """URL at which the agent receives requests."""
 
-    entrypoints: Annotated[list[AgentEntrypoint], MinLen(1)]
+    entrypoints: list[AgentEntrypoint] = Field(min_length=1)
     """Defines how iChatBio can interact with this agent."""
 
 
