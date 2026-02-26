@@ -25,8 +25,6 @@ from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
 from ichatbio.types import AgentEntrypoint
 
-AGENT_URL = "http://test.agent"
-
 
 @pytest.fixture
 def agent():
@@ -59,7 +57,7 @@ def agent():
                         parameters=StrictParameters,
                     ),
                 ],
-                url=AGENT_URL,
+                url="http://test.agent/",
             )
 
         async def run(
@@ -240,11 +238,45 @@ async def test_bad_entrypoint(query_test_agent):
 
 @pytest.mark.asyncio
 async def test_server_agent_card(agent_httpx_client):
-    response = await agent_httpx_client.get(f"{AGENT_URL}/.well-known/agent.json")
+    response = await agent_httpx_client.get(f"http://test.agent/.well-known/agent.json")
     card = response.json()
 
     assert card == {
-        "capabilities": {"streaming": True},
+        "capabilities": {
+            "extensions": [{
+                "description": "Enables iChatBio-specific interactions",
+                "required": True,
+                "uri": "https://github.com/acislab/ichatbio-sdk/a2a/v1",
+                "params": {
+                    "entrypoints": [
+                        {"description": "Test description.", "id": "no_parameters", "parameters": None},
+                        {"description": "Test description.", "id": "optional_parameters", "parameters": {
+                            "properties": {
+                                "test_parameter": {
+                                    "anyOf": [{"type": "integer"}, {"type": "null"}],
+                                    "default": None,
+                                    "title": "Test Parameter"
+                                }
+                            },
+                            "title": "OptionalParameters",
+                            "type": "object"
+                        }},
+                        {"description": "Test description.", "id": "strict_parameters", "parameters": {
+                            "properties": {
+                                "test_parameter": {
+                                    "title": "Test Parameter",
+                                    "type": "integer"
+                                }
+                            },
+                            "required": ["test_parameter"],
+                            "title": "StrictParameters",
+                            "type": "object"
+                        }}
+                    ]
+                }
+            }],
+            "streaming": True
+        },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
         "description": "Test description.",
@@ -271,7 +303,7 @@ async def test_server_agent_card(agent_httpx_client):
                 "tags": ["ichatbio"],
             },
         ],
-        "url": AGENT_URL,
+        "url": "http://test.agent/",
         "version": "0",
     }
 
