@@ -272,7 +272,7 @@ async def test_server_agent_card(agent_httpx_client):
             },
         ],
         "url": AGENT_URL,
-        "version": "1",
+        "version": "0",
     }
 
 

@@ -156,8 +156,7 @@ async def test_executor(execute):
                         Part(
                             root=TextPart(
                                 metadata={
-                                    "ichatbio_type": "direct_response",
-                                    "ichatbio_context_id": "context-1",
+                                    "ichatbio_type": "direct_response"
                                 },
                                 text="hello",
                             )
@@ -187,8 +186,7 @@ async def test_submit_direct_response_with_data(execute):
         Part(
             root=TextPart(
                 metadata={
-                    "ichatbio_type": "direct_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "direct_response"
                 },
                 text="hello",
             )
@@ -196,8 +194,7 @@ async def test_submit_direct_response_with_data(execute):
         Part(
             root=DataPart(
                 metadata={
-                    "ichatbio_type": "direct_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "direct_response"
                 },
                 data={"name": "barb"},
             )
@@ -214,8 +211,7 @@ async def test_submit_begin_process(execute):
             root=TextPart(
                 kind="text",
                 metadata={
-                    "ichatbio_type": "begin_process_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "begin_process_response"
                 },
                 text="thinking",
             )
@@ -232,8 +228,7 @@ async def test_submit_process_log(execute):
             root=TextPart(
                 kind="text",
                 metadata={
-                    "ichatbio_type": "process_log_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "process_log_response"
                 },
                 text="doing stuff",
             )
@@ -261,8 +256,7 @@ async def test_submit_artifact_with_online_content(execute):
                     uri="https://test.artifact",
                 ),
                 metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "artifact_response"
                 },
             )
         ),
@@ -273,8 +267,7 @@ async def test_submit_artifact_with_online_content(execute):
                     "metadata": {"source": "nowhere"},
                 },
                 metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "artifact_response"
                 },
             )
         ),
@@ -301,8 +294,7 @@ async def test_submit_artifact_with_offline_content(execute):
                     bytes=base64.b64encode(b"hello"),
                 ),
                 metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "artifact_response"
                 },
             )
         ),
@@ -310,8 +302,7 @@ async def test_submit_artifact_with_offline_content(execute):
             root=DataPart(
                 data={"metadata": {"source": "nowhere"}, "uris": []},
                 metadata={
-                    "ichatbio_type": "artifact_response",
-                    "ichatbio_context_id": "context-1",
+                    "ichatbio_type": "artifact_response"
                 },
             )
         ),

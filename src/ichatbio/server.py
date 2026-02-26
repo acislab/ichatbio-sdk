@@ -20,7 +20,9 @@ def convert_agent_card_to_a2a(card: AgentCard):
         documentation_url=card.documentation_url,
         icon_url=card.icon,
         version=card.version or "0",
-        capabilities=a2a.types.AgentCapabilities(streaming=True),
+        capabilities=a2a.types.AgentCapabilities(
+            streaming=True
+        ),
         defaultInputModes=["text/plain"],
         defaultOutputModes=["text/plain"],
         skills=[
