@@ -10,8 +10,9 @@ types, and shared persistent storage) enabled by the iChatBio ecosystem.
 
 # Getting started
 
-See [examples](examples) for a reference agent implementation. A standalone example agent is
-available [here](https://github.com/mielliott/ichatbio-agent-example).
+See [examples](https://github.com/acislab/ichatbio-sdk/tree/main/examples) for a reference agent implementation. A
+standalone example agent is
+available [here](https://github.com/mielliott/ichatbio-example-agent).
 
 The iChatBio SDK is available on [PyPI](https://pypi.org/project/ichatbio-sdk):
 
@@ -124,11 +125,12 @@ If all went well, you should be able to find your agent card at http://localhost
 The source code for several existing agents is available online, and may be helpful to reference when designing new
 agents:
 
-* [ichatbio-agent-example](https://github.com/mielliott/ichatbio-agent-example): a template repository for creating new
+* [ichatbio-example-agent](https://github.com/mielliott/ichatbio-example-agent): a template repository for creating new
   agents
 * [ichatbio-idigbio-agent](https://github.com/acislab/ichatbio-idigbio-agent): interacts with https://idigbio.org data
   through their APIs
-* [ichatbio-data-handler-agent](https://github.com/acislab/ichatbio-data-handler-agent): filters and transforms
+* [ichatbio-data-handler-agent](https://github.com/acislab/ichatbio-data-handler-agent): uses [JQ](https://jqlang.org/)
+  to filter and transform
   structured data (e.g., JSON)
 
 # SDK Development
@@ -138,7 +140,7 @@ Requires Python 3.12 or higher.
 Dependencies for the example agents are installed separately:
 
 ```
-pip install .[example]
+pip install ichatbio-sdk[example]
 ```
 
 # Funding
