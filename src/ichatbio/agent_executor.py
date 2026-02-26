@@ -71,7 +71,7 @@ def make_artifact_parts(
     uris: list[str],
 ) -> list[TextPart | FilePart | DataPart]:
     metadata = {
-        "https://github.com/acislab/ichatbio-sdk/a2a/v1": {
+        "https://ichatbio.org/a2a/v1": {
             "message_type": "artifact_response"
         },
         "ichatbio_type": "artifact_response" # TODO: remove with version 3
@@ -101,7 +101,7 @@ def make_artifact_parts(
 
 def make_text_data_parts(kind: str, text: str, data: dict):
     metadata = {
-        "https://github.com/acislab/ichatbio-sdk/a2a/v1": {
+        "https://ichatbio.org/a2a/v1": {
             "message_type": kind
         },
         "ichatbio_type": kind # TODO: remove with version 3

@@ -7,7 +7,7 @@ import dotenv
 import instructor
 import pydantic
 import requests
-from instructor.exceptions import InstructorRetryException
+from instructor.core import InstructorRetryException
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic import Field

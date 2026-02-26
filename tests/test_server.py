@@ -246,7 +246,7 @@ async def test_server_agent_card(agent_httpx_client):
             "extensions": [{
                 "description": "Enables iChatBio-specific interactions",
                 "required": True,
-                "uri": "https://github.com/acislab/ichatbio-sdk/a2a/v1",
+                "uri": "https://ichatbio.org/a2a/v1",
                 "params": {
                     "entrypoints": [
                         {"description": "Test description.", "id": "no_parameters", "parameters": None},

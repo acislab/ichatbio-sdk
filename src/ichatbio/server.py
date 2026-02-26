@@ -27,7 +27,7 @@ def convert_agent_card_to_a2a(card: AgentCard):
                 AgentExtension(
                     description="Enables iChatBio-specific interactions",
                     required=True,
-                    uri="https://github.com/acislab/ichatbio-sdk/a2a/v1",
+                    uri="https://ichatbio.org/a2a/v1",
                     params={
                         "entrypoints": [entrypoint.model_dump() for entrypoint in card.entrypoints]
                     }
