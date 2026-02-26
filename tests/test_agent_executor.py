@@ -194,7 +194,7 @@ async def test_executor(execute):
                     task_id="task-1",
                     role=Role.agent,
                     metadata={
-                        "ichatbio": {
+                        "https://ichatbio.org/a2a/v1": {
                             "sdk": importlib.metadata.version("ichatbio-sdk"),
                             "message_type": "direct_response",
                         }
@@ -224,7 +224,7 @@ async def test_ask_question(execute):
     )
 
     message = events[2].status.message
-    assert message.metadata["ichatbio"]["response_model"] == {
+    assert message.metadata["https://ichatbio.org/a2a/v1"]["response_model"] == {
         "properties": {"answer": {"title": "Answer", "type": "integer"}},
         "required": ["answer"],
         "title": "ResponseModel",
@@ -337,7 +337,7 @@ async def test_submit_direct_response_with_data(execute):
     events = await execute(DirectResponse("hello", data={"name": "barb"}))
 
     message = events[2].status.message
-    assert message.metadata["ichatbio"]["message_type"] == "direct_response"
+    assert message.metadata["https://ichatbio.org/a2a/v1"]["message_type"] == "direct_response"
     assert message.parts == [
         Part(root=TextPart(text="hello")),
         Part(root=DataPart(data={"name": "barb"})),
@@ -349,7 +349,7 @@ async def test_submit_begin_process(execute):
     events = await execute(ProcessBeginResponse("thinking"))
 
     message = events[2].status.message
-    assert message.metadata["ichatbio"]["message_type"] == "begin_process_response"
+    assert message.metadata["https://ichatbio.org/a2a/v1"]["message_type"] == "begin_process_response"
     assert message.parts == [Part(root=TextPart(text="thinking"))]
 
 
@@ -358,7 +358,7 @@ async def test_submit_process_log(execute):
     events = await execute(ProcessLogResponse("doing stuff"))
 
     message = events[2].status.message
-    assert message.metadata["ichatbio"]["message_type"] == "process_log_response"
+    assert message.metadata["https://ichatbio.org/a2a/v1"]["message_type"] == "process_log_response"
     assert message.parts == [Part(root=TextPart(kind="text", text="doing stuff"))]
 
 
@@ -374,7 +374,7 @@ async def test_submit_artifact_with_online_content(execute):
     )
 
     message = events[2].status.message
-    assert message.metadata["ichatbio"]["message_type"] == "artifact_response"
+    assert message.metadata["https://ichatbio.org/a2a/v1"]["message_type"] == "artifact_response"
     assert message.parts == [
         Part(
             root=FilePart(
@@ -410,7 +410,7 @@ async def test_submit_artifact_with_offline_content(execute):
     )
 
     message = events[2].status.message
-    assert message.metadata["ichatbio"]["message_type"] == "artifact_response"
+    assert message.metadata["https://ichatbio.org/a2a/v1"]["message_type"] == "artifact_response"
     assert message.parts == [
         Part(
             root=FilePart(

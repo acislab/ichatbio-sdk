@@ -294,7 +294,8 @@ async def test_server_agent_card(agent_httpx_client):
                             "required": ["test_parameter"],
                             "title": "StrictParameters",
                             "type": "object"
-                        }}
+                        }},
+                        {"description": "Test description.", "id": "make_artifact", "parameters": None}
                     ]
                 }
             }],

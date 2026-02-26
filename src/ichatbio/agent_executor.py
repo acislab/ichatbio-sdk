@@ -74,7 +74,7 @@ def new_agent_response_message(
         task_id,
     )
     message.metadata = {
-        "ichatbio": {
+        "https://ichatbio.org/a2a/v1": {
             "sdk": importlib.metadata.version("ichatbio-sdk"),
             "message_type": kind
         } | (metadata or {})
