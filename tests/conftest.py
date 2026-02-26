@@ -35,9 +35,6 @@ def messages():
     return list()
 
 
-TEST_CONTEXT_ID = "617727d1-4ce8-4902-884c-db786854b51c"
-
-
 @pytest.fixture(scope="function")
 def context(messages) -> ResponseContext:
     return ResponseContext(InMemoryResponseChannel(messages))

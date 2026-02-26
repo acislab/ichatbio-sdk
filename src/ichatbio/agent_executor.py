@@ -70,7 +70,12 @@ def make_artifact_parts(
     mimetype: str,
     uris: list[str],
 ) -> list[TextPart | FilePart | DataPart]:
-    metadata = {"ichatbio_type": "artifact_response"}
+    metadata = {
+        "ichatbio": {
+            "message_type": "artifact_response"
+        },
+        "ichatbio_type": "artifact_response" # TODO: remove with version 3
+    }
 
     data = {
         "metadata": artifact_metadata,
@@ -96,7 +101,10 @@ def make_artifact_parts(
 
 def make_text_data_parts(kind: str, text: str, data: dict):
     metadata = {
-        "ichatbio_type": kind,
+        "ichatbio": {
+            "message_type": kind
+        },
+        "ichatbio_type": kind # TODO: remove with version 3
     }
 
     if data:
