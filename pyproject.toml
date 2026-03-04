@@ -15,23 +15,23 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "a2a-sdk==0.3.24",
-    "a2a-sdk[http-server]~=0.3.24",
-    "pydantic~=2.12.5",
-    "typing_extensions~=4.15.0",
-    "starlette~=0.52.1",
-    "uvicorn~=0.41.0",
-    "attrs~=25.4.0"
+    "a2a-sdk>=0.3.24",
+    "a2a-sdk[http-server]>=0.3.24",
+    "pydantic>=2.12.5",
+    "typing_extensions>=4.15.0",
+    "starlette>=0.52.1",
+    "uvicorn>=0.41.0",
+    "attrs>=25.4.0"
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
-    "pytest-asyncio~=1.2.0",
-    "openai~=1.109.1",
-    "instructor~=1.11.3",
-    "dotenv~=0.9.9",
-    "python-dotenv~=1.1.0",
+    "pytest-asyncio>=1.2.0",
+    "openai>=1.109.1",
+    "instructor>=1.11.3",
+    "dotenv>=0.9.9",
+    "python-dotenv>=1.1.0",
 ]
 
 [project.urls]
