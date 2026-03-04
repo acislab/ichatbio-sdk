@@ -24,12 +24,10 @@ dependencies = [
     "attrs~=25.4.0"
 ]
 
-[project.optional-dependencies]
-test = [
-    "pytest~=8.4.2",
-    "pytest-asyncio~=1.2.0"
-]
-example = [
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio~=1.2.0",
     "openai~=1.109.1",
     "instructor~=1.11.3",
     "dotenv~=0.9.9",
