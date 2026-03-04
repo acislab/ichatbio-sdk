@@ -37,6 +37,9 @@ dev = [
 [project.urls]
 repository = "https://github.com/acislab/ichatbio-sdk"
 
+[project.entry-points.pytest11]
+ichatbio = "ichatbio.pytest_plugin"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "tests", "examples"]
