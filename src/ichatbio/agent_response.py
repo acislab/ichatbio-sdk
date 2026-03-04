@@ -73,7 +73,7 @@ class IChatBioAgentProcess:
         Do not call this function directly. It will be performed automatically when beginning the process in a "with"
         statement.
 
-        >>> with context.begin_process(...) as process:
+        >>> async with context.begin_process(...) as process:
         >>>     # process._begin() is called immediately
         """
         if self._context_id:
@@ -88,7 +88,7 @@ class IChatBioAgentProcess:
         Do not call this function directly. It will be performed automatically when beginning the process in a "with"
         statement.
 
-        >>> with context.begin_process(...) as process:
+        >>> async with context.begin_process(...) as process:
         >>>     # process._end() is called at the end of this block
         """
         if not self._context_id:
@@ -165,11 +165,10 @@ class ResponseContext:
 
         Processes must be started using a ``with`` statement:
 
-            with context.process("Searching iDigBio") as process:
-                process.log("Generating search parameters")
-                # Agent actions
-                process.create_artifact()
-
+        >>> async with context.begin_process("Searching iDigBio") as process:
+        >>>     await process.log("Generating search parameters")
+        >>>     # Agent actions
+        >>>     await process.create_artifact(...)
         """
         process = IChatBioAgentProcess(self._channel, summary, metadata)
         await process._begin()
