@@ -1,5 +1,7 @@
 import os
+import unittest.mock
 
+import dotenv
 import pytest
 
 from hello_world.agent import HelloWorldAgent
@@ -9,11 +11,11 @@ from ichatbio.agent_response import (
     ProcessBeginResponse,
     DirectResponse,
 )
+from langchain_weather.agent import LangChainAgent
 
 
 @pytest.mark.asyncio
 async def test_hello(context, messages):
-
     agent = HelloWorldAgent()
     await agent.run(context, "Hi", "hello", None)
     assert messages == [
@@ -81,3 +83,15 @@ async def test_vision(context, messages):
 
     ai_analysis = process_messages[-1].text
     assert "frog" in ai_analysis.lower()
+
+
+@pytest.mark.asyncio
+async def test_langchain(context, messages):
+    dotenv.load_dotenv()
+    agent = LangChainAgent()
+    await agent.run(context, "What's the weather like in Albuquerque?", "run", None)
+    assert messages == [
+        ProcessBeginResponse("Looking up..."),
+        ProcessLogResponse("Clear skies in sunny Albuquerque!"),
+        DirectResponse(unittest.mock.ANY),
+    ]

@@ -32,6 +32,9 @@ dev = [
     "instructor>=1.11.3",
     "dotenv>=0.9.9",
     "python-dotenv>=1.1.0",
+    "contextvars>=2.4",
+    "langchain>=1.2.12",
+    "langchain_openai>=1.1.11"
 ]
 
 [project.urls]
