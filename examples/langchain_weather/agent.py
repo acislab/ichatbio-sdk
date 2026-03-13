@@ -69,7 +69,6 @@ class LangChainAgent(IChatBioAgent):
         )
 
         # Run the graph
-
         await agent.ainvoke(
             {
                 "messages": [

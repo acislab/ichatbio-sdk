@@ -1,6 +1,7 @@
 # LangChain example agent
 
-An example agent that uses LangChain to call tools in a loop. When it thinks it's finished, it either completes the task or aborts with an explanation.
+An example agent that uses LangChain to call tools in a loop. When it thinks it's finished, it either completes the task
+or aborts with an explanation.
 
 ```mermaid
 flowchart TD
