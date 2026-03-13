@@ -4,20 +4,9 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b6478393-9567-4e0b-8548-ee0d4c9af5a7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/examples/langchain_weather/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/langchain_weather/agent.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/langchain_weather/context.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/examples/langchain_weather/util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/ichatbio-sdk.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ichatbio-sdk.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/pyProjectModel.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="b6478393-9567-4e0b-8548-ee0d4c9af5a7" name="Changes" comment="Add langchain example">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_examples.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_examples.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/langchain_weather/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/examples/langchain_weather/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,6 +43,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python tests.pytest for tests.test_examples.test_cataas.executor": "Debug",
     "Python tests.pytest for tests.test_examples.test_hello.executor": "Run",
     "Python tests.pytest for tests.test_examples.test_langchain.executor": "Run",
     "RunOnceActivity.MCP Project settings loaded": "true",
@@ -70,7 +60,30 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="Python tests.pytest for tests.test_examples.test_langchain">
+  <component name="RunManager" selected="Python tests.pytest for tests.test_examples.test_cataas">
+    <configuration name="pytest for tests.test_examples.test_cataas" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="ichatbio-sdk" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONPATH" value="$PROJECT_DIR$/../ichatbio-sdk:$PROJECT_DIR$/src:$PROJECT_DIR$/examples" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="DEBUG_JUST_MY_CODE" value="false" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="RUN_TOOL" value="" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.test_examples.test_cataas&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
     <configuration name="pytest for tests.test_examples.test_hello" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
       <module name="ichatbio-sdk" />
       <option name="ENV_FILES" value="" />
@@ -116,6 +129,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.pytest for tests.test_examples.test_cataas" />
         <item itemvalue="Python tests.pytest for tests.test_examples.test_langchain" />
         <item itemvalue="Python tests.pytest for tests.test_examples.test_hello" />
       </list>
@@ -136,12 +150,25 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1773440553589</updated>
-      <workItem from="1773440554656" duration="2876000" />
+      <workItem from="1773440554656" duration="3095000" />
     </task>
+    <task id="LOCAL-00001" summary="Add langchain example">
+      <option name="closed" value="true" />
+      <created>1773443321454</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1773443321454</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Add langchain example" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add langchain example" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/ichatbio_sdk$pytest_for_tests_test_examples_test_langchain.coverage" NAME="pytest for tests.test_examples.test_langchain Coverage Results" MODIFIED="1773443273378" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
