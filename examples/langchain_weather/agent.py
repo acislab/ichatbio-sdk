@@ -1,9 +1,10 @@
 """
-This agent runs as a LangChain tool-calling agent. Such agents call a sequence of tools to try to to fulfill the user's
-request. This is modeled as a conversation which begins with just the user's request, then each subsequent tool call
-appends agent-generated messages to the conversation. This implementation uses two special tools - "abort" and "finish"
-- which the agent calls when it decides that either it has successfully fulfilled the user's request ("finish") or that
-it isn't able to do so and should quit instead ("abort").
+This agent runs as a LangChain tool-calling agent. The agent is able to call one or more tools in a loop to try to to
+fulfill the user's request. This is modeled as a conversation which begins with just the user's request, then each
+subsequent tool call appends agent-generated messages to the conversation (this is handled automatically by the
+@context_tool function decorator). This implementation uses two special tools - "abort" and "finish" - which the agent
+calls when it decides that either it has successfully fulfilled the user's request ("finish") or that it isn't able to
+do so and should quit instead ("abort").
 
 See the flowchart in README.md for a visualization of the agent.
 """
@@ -26,6 +27,14 @@ from langchain_weather.util import context_tool
 
 
 class LangChainAgent(IChatBioAgent):
+    def __init__(self):
+        # Build a LangChain agent graph
+        self.langchain_agent = langchain.agents.create_agent(
+            model=ChatOpenAI(model="gpt-4.1-nano", tool_choice="required"),
+            tools=[check_weather, abort, finish],
+            system_prompt="You're a friendly weather assistant.",
+        )
+
     @override
     def get_agent_card(self) -> AgentCard:
         return AgentCard(
@@ -52,24 +61,15 @@ class LangChainAgent(IChatBioAgent):
             params: BaseModel,  # It's safe to assume type Parameter because we only have one entrypoint
     ):
         """
-        Running this agent first builds a LangChain agent graph (a loop that alternates between decision-making and
-        tool execution), then executes the graph with `request` as input. The tools themselves are responsible for
-        sending messages back to iChatBio via the `context` object. To give the tools access to the request context, we
-        instantiate new tools each time a request is received; this allows the agent to safely handle concurrent
-        requests.
+        Executes a LangChain agent graph with `request` as input. The agent does not produce text responses directly,
+        but must do so by calling tools. Only tools send response messages back iChatBio.
         """
 
+        # Give tools access to the `context` object so they can send response messages
         current_context.set(context)
 
-        # Build a LangChain agent graph
-        agent = langchain.agents.create_agent(
-            model=ChatOpenAI(model="gpt-4.1-nano", tool_choice="required"),
-            tools=[check_weather, abort, finish],
-            system_prompt="You're a friendly weather assistant.",
-        )
-
         # Run the graph
-        await agent.ainvoke(
+        await self.langchain_agent.ainvoke(
             {
                 "messages": [
                     {"role": "user", "content": request},
