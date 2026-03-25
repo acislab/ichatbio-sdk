@@ -1,5 +1,5 @@
 """
-This agent runs as a LangChain tool-calling agent. The agent is able to call one or more tools in a loop to try to to
+This agent runs as a LangChain tool-calling agent. The agent is able to call one or more tools in a loop to try to
 fulfill the user's request. This is modeled as a conversation which begins with just the user's request, then each
 subsequent tool call appends agent-generated messages to the conversation (this is handled automatically by the
 @context_tool function decorator). This implementation uses two special tools - "abort" and "finish" - which the agent
